@@ -56,6 +56,32 @@ class LoginPage(BasePage):
             "[role='alert']:visible, [data-testid='error-message']:visible"
         ).first
 
+    @property
+    def otp_inputs(self) -> Locator:
+        return self.page.locator(
+            "input[autocomplete='one-time-code']:visible, "
+            "input[aria-label*='digit' i]:visible, "
+            "input[placeholder*='code' i]:visible, "
+            "input[maxlength='6']:visible, "
+            "input[type='tel']:visible"
+        )
+
+    def enter_otp(self, code: str) -> None:
+        """Enters 6-digit OTP code into either a single field or 6 discrete digit inputs."""
+        inputs = self.otp_inputs
+        count = inputs.count()
+
+        if count >= 6:
+            # 6 separate digit inputs
+            for i in range(min(6, len(code))):
+                inputs.nth(i).fill(code[i])
+        elif count >= 1:
+            # Single consolidated OTP field
+            inputs.first.fill(code)
+
+        if self.submit_button.is_visible(timeout=2000):
+            self.submit_button.click()
+
     def navigate(self) -> LoginPage:
         """Navigates to home page and triggers the login flow."""
         self.goto("/")

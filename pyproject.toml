@@ -82,6 +82,7 @@ ignore = [
     "S105",   # possible hardcoded password false positives
     "S106",   # possible hardcoded password false positives
     "S110",   # try-except-pass in non-blocking banner dismissal
+    "S310",   # urlopen audit for test API helper
     "S311",   # standard pseudo-random generator is fine for test data
     "RUF001", # allow unicode multiplication/close symbols
     "ANN401", # allow Any in fixture signatures / generic route handlers
