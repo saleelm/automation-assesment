@@ -1,0 +1,14 @@
+---
+description: Multi-platform execution strategy across web, mobile-emulated, and android-device
+alwaysApply: true
+---
+# Platform Strategy
+
+1. All tests are **cross-platform by default**.
+2. Never branch on platform (`if platform.is_mobile: ...`) inside test functions.
+3. Differences in UI between viewports (e.g. hamburger menus vs top navs) belong inside Page Objects.
+4. Platforms:
+   - `web`: Desktop Chromium viewport (1280x800).
+   - `mobile-emulated`: Mobile device descriptor (e.g. Pixel 7 / iPhone) with touch simulation and mobile user agent.
+   - `android-device`: Real Android device or emulator over adb.
+5. Use `Tag.WEB_ONLY` or `Tag.MOBILE_ONLY` markers ONLY when a test scenario is physically impossible on the other platform.

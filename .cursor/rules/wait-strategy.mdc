@@ -1,0 +1,13 @@
+---
+description: Deterministic synchronization and wait policies (no arbitrary sleep)
+alwaysApply: true
+---
+# Wait Strategy
+
+1. `time.sleep` and `page.wait_for_timeout` are strictly banned.
+2. `make lint-waits` greps for both and fails the build on any occurrence.
+3. Synchronize using:
+   - Web-first assertions: `expect(locator).to_be_visible()`, `expect(locator).to_have_text()`, etc.
+   - Playwright state predicates: `page.wait_for_url()`, `page.wait_for_load_state()`.
+   - Network response interception: `with page.expect_response(...) as resp:`.
+   - Polling utilities in `ui_test_platform.helpers.async_helper.poll_condition` using monotonic time loops.

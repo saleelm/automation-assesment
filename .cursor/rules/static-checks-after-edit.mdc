@@ -1,0 +1,10 @@
+---
+description: Mandatory static check verification after any Python file modification
+alwaysApply: true
+---
+# Static Checks After Edit
+
+After making any changes to Python files (`src/**` or `tests/**`):
+1. Run `make lint` to verify Ruff lint rules and `lint-waits`.
+2. Run `make typecheck` to verify `mypy --strict`.
+3. Fix any reported lint or typing errors immediately before committing or marking a task done.

@@ -1,0 +1,15 @@
+---
+description: Page Object Model boundaries and architecture
+alwaysApply: true
+---
+# Page Object Model Boundary
+
+1. Page Objects live under `src/ui_test_platform/pages/<app>/` and inherit from `BasePage`.
+2. Locators must be declared as `@property` returning `Locator` or methods for parameterized locators.
+3. Tests must never instantiate Page Objects directly. Page Objects are injected via pytest fixtures registered in `src/ui_test_platform/fixtures/pom/page_object_fixtures.py`.
+4. Page Objects own:
+   - Locators
+   - Action sequences (`enter_username_and_validate`, `open_login`, etc.)
+   - Navigation anchors (`navigate()` methods)
+   - Reusable assertions directly tied to page state
+5. Tests contain test steps (`with step("Given..."):`, `When`, `Then`) and assert high-level expectations.

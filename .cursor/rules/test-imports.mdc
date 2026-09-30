@@ -1,0 +1,13 @@
+---
+description: Test authoring and import boundaries for ui-test-platform
+alwaysApply: true
+---
+# Test Imports and Authoring Rule
+
+1. Tests under `tests/**` MUST import testing symbols ONLY from `ui_test_platform.fixtures.pom.test_options`:
+   ```python
+   from ui_test_platform.fixtures.pom.test_options import AppConfig, Page, Platform, Tag, expect, step, tags, title
+   ```
+2. Direct imports from `playwright.sync_api` and `pytest_playwright` in `tests/**` are banned and rejected by Ruff rule `TID251`.
+3. Tests must be thin and delegate all DOM interactions to Page Objects provided via fixtures.
+4. Type-only imports must be placed under `if TYPE_CHECKING:`.
