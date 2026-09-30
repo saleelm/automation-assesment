@@ -1,0 +1,97 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ui-test-platform"
+version = "0.1.0"
+description = "Enterprise Python + Playwright Cross-Platform UI Test Automation Framework"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "playwright>=1.40.0",
+    "pytest>=8.0.0",
+    "pytest-playwright>=0.4.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-timeout>=2.2.0",
+    "pytest-split>=0.8.0",
+    "filelock>=3.13.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+    "allure-pytest>=2.13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.3.0",
+    "mypy>=1.8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--strict-markers --strict-config --browser=chromium --tracing=retain-on-failure --screenshot=only-on-failure --video=off --alluredir=allure-results --timeout=300"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+pretty = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "allure.*",
+    "allure_pytest.*",
+    "pytest_split.*",
+    "filelock.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_decorators = false
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "N",    # pep8-naming
+    "S",    # flake8-bandit
+    "ANN",  # flake8-annotations
+    "PT",   # flake8-pytest-style
+    "SIM",  # flake8-simplify
+    "RUF",  # Ruff-specific rules
+    "TCH",  # flake8-type-checking
+    "TID",  # flake8-tidy-imports
+]
+ignore = [
+    "S101",   # allow assert in pytest test suite
+    "S105",   # possible hardcoded password false positives
+    "S106",   # possible hardcoded password false positives
+    "S110",   # try-except-pass in non-blocking banner dismissal
+    "S311",   # standard pseudo-random generator is fine for test data
+    "RUF001", # allow unicode multiplication/close symbols
+    "ANN401", # allow Any in fixture signatures / generic route handlers
+]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"playwright.sync_api" = { msg = "Use fixtures from ui_test_platform.fixtures.pom.test_options instead." }
+"pytest_playwright" = { msg = "Use fixtures from ui_test_platform.fixtures.pom.test_options instead." }
+
+[tool.ruff.lint.per-file-ignores]
+"src/**" = ["TID251"]
+"tests/conftest.py" = ["ANN201", "ANN001"]
+"conftest.py" = ["ANN201", "ANN001"]

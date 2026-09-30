@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment files
+env/.env.*
+!env/.env.*.example
+
+# Typing & linting caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Test reports and outputs
+allure-results/
+allure-report/
+test-results/
+junit-results/
+cli-artifacts/
+.playwright/
+.playwright-cli/
+
+# Playwright auth state (keep gitkeep)
+playwright/.auth/*
+!playwright/.auth/.gitkeep
+
+# IDE & OS
+.DS_Store
+*.swp
+*.swo
+.vscode/
+.idea/
