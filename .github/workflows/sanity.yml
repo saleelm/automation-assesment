@@ -1,0 +1,49 @@
+name: Scheduled / PR Sanity Suite
+
+on:
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '0 6 * * 1-5' # Weekdays at 6am UTC
+
+jobs:
+  sanity-suite:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [web, mobile-emulated]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          playwright install --with-deps chromium
+
+      - name: Run Linters & Type Checking
+        run: |
+          make lint
+          make typecheck
+
+      - name: Run Sanity Tests
+        env:
+          ENVIRONMENT: qa
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          pytest --platform ${{ matrix.platform }} -m "sanity or smoke" --alluredir=allure-results
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanity-results-${{ matrix.platform }}
+          path: allure-results
