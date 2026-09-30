@@ -1,10 +1,16 @@
 name: Scheduled / PR Sanity Suite
 
 on:
+  push:
+    branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
   schedule:
     - cron: '0 6 * * 1-5' # Weekdays at 6am UTC
+
+permissions:
+  contents: read
 
 jobs:
   sanity-suite:
