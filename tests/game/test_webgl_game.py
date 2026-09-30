@@ -13,7 +13,7 @@ pytestmark = [pytest.mark.game, pytest.mark.webgl, pytest.mark.unauthenticated]
 
 
 class TestWebGLGamePortal:
-    @tags(Tag.SMOKE, Tag.GAME, Tag.WEBGL)
+    @tags(Tag.SMOKE, Tag.GAME, Tag.WEBGL, Tag.WEB_ONLY)
     @title("TC01 should initialize WebGL game container and support canvas context")
     def test_tc01_should_initialize_webgl_game_container(self, game_page: WebGLGamePage) -> None:
         with step("Given the user navigates to the Stumble Guys WebGL portal"):
@@ -25,7 +25,7 @@ class TestWebGLGamePortal:
         with step("And the browser runtime should support WebGL2/WebGL context"):
             assert game_page.is_webgl_supported() is True, "WebGL is not supported in the current browser"
 
-    @tags(Tag.E2E, Tag.GAME, Tag.WEBGL)
+    @tags(Tag.E2E, Tag.GAME, Tag.WEBGL, Tag.WEB_ONLY)
     @title("TC02 should dispatch canvas viewport click and keyboard controls")
     def test_tc02_should_dispatch_canvas_viewport_interactions(self, game_page: WebGLGamePage) -> None:
         with step("Given the WebGL game portal is loaded"):

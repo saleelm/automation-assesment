@@ -20,13 +20,11 @@ class LoginPage(BasePage):
 
     @property
     def avatar_trigger(self) -> Locator:
-        if self.platform.is_mobile:
-            return self.page.locator("button.xl\\:hidden:has(img[alt='avatar']), button:has(img[alt='avatar'])").first
-        return self.page.locator("button:has(img[alt='avatar'])").first
+        return self.page.locator("button:has(img[alt='avatar']):visible").first
 
     @property
     def nav_login_button(self) -> Locator:
-        return self.page.locator("button:has-text('Login'), a:has-text('Login'), [class*='AuthButton_login']").first
+        return self.page.locator("button:has-text('Login'):visible, [class*='AuthButton_login']:visible").first
 
     @property
     def auth_modal(self) -> Locator:
