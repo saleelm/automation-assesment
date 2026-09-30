@@ -8,6 +8,10 @@ import urllib.request
 from urllib.error import HTTPError
 
 
+class MailServiceRateLimitError(Exception):
+    """Raised when the public temp mail API rate limits requests (HTTP 429)."""
+
+
 class TempMailClient:
     """Zero-credential disposable email client powered by Mail.tm REST API.
 
@@ -42,6 +46,10 @@ class TempMailClient:
                 resp_text = resp.read().decode("utf-8")
                 return json.loads(resp_text) if resp_text else {}
         except HTTPError as e:
+            if e.code == 429:
+                raise MailServiceRateLimitError(
+                    "Public temp-mail API rate-limited (HTTP 429 Too Many Requests)."
+                ) from e
             err_body = e.read().decode("utf-8") if e.fp else ""
             raise RuntimeError(f"Mail.tm API error {e.code}: {err_body}") from e
 

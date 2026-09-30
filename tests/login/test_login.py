@@ -44,12 +44,18 @@ class TestAuthentication:
     @tags(Tag.E2E, Tag.LOGIN, Tag.AUTH)
     @title("TC03 should automate email OTP retrieval and entry pipeline")
     def test_tc03_should_automate_email_otp_retrieval_and_entry(self, login_page: LoginPage) -> None:
-        from ui_test_platform.helpers.email_otp_helper import TempMailClient
+        from ui_test_platform.helpers.email_otp_helper import (
+            MailServiceRateLimitError,
+            TempMailClient,
+        )
 
         temp_mail = TempMailClient()
 
         with step("Given a disposable automated test mailbox is created"):
-            email_addr, token = temp_mail.create_inbox()
+            try:
+                email_addr, token = temp_mail.create_inbox()
+            except MailServiceRateLimitError as e:
+                pytest.skip(f"Public disposable mail service is rate-limited: {e}")
             assert "@" in email_addr
             assert len(token) > 0
 
