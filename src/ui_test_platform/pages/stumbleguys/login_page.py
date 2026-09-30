@@ -45,14 +45,15 @@ class LoginPage(BasePage):
     @property
     def submit_button(self) -> Locator:
         return self.page.locator(
-            "button[type='submit'], #kc-login, button:has-text('Continue'), "
-            "button:has-text('Login'), button:has-text('Sign In')"
+            "form button[type='submit']:visible, [role='dialog'] button[type='submit']:visible, "
+            "#kc-login:visible, button:has-text('Continue'):visible, button:has-text('Sign In'):visible"
         ).first
 
     @property
     def error_message(self) -> Locator:
         return self.page.locator(
-            "#input-error, .alert-error, .text-red-500, [role='alert'], [data-testid='error-message']"
+            "#input-error:visible, .alert-error:visible, .text-red-500:visible, "
+            "[role='alert']:visible, [data-testid='error-message']:visible"
         ).first
 
     def navigate(self) -> LoginPage:
@@ -75,17 +76,20 @@ class LoginPage(BasePage):
         # Click login button to open auth dialog/redirect
         self.nav_login_button.click()
 
-        if self.email_input.is_visible(timeout=5000):
+        if self.email_input.is_visible(timeout=3000):
             self.email_input.fill(email)
-            self.submit_button.click()
-
-            if self.password_input.is_visible(timeout=5000):
-                self.password_input.fill(password)
+            if self.submit_button.is_visible(timeout=2000):
                 self.submit_button.click()
+
+            if self.password_input.is_visible(timeout=3000):
+                self.password_input.fill(password)
+                if self.submit_button.is_visible(timeout=2000):
+                    self.submit_button.click()
 
     def submit_invalid_credentials(self, email: str) -> None:
         """Submits invalid email/username to trigger form validation."""
         self.nav_login_button.click()
-        if self.email_input.is_visible(timeout=5000):
+        if self.email_input.is_visible(timeout=3000):
             self.email_input.fill(email)
-            self.submit_button.click()
+            if self.submit_button.is_visible(timeout=2000):
+                self.submit_button.click()
