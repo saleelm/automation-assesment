@@ -94,5 +94,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "src/**" = ["TID251"]
+"scripts/**" = ["TID251"]
 "tests/conftest.py" = ["ANN201", "ANN001"]
 "conftest.py" = ["ANN201", "ANN001"]

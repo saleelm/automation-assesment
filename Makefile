@@ -1,10 +1,13 @@
 .PHONY: test test-list test-setup test-local-setup test-local test-local-list \
         test-headed test-web test-mobile test-android test-auth test-smoke test-sanity \
         test-regression test-api test-e2e clean-results report report-allure report-allure-open \
-        typecheck lint lint-fix format format-check lint-waits install-dev
+        typecheck lint lint-fix format format-check lint-waits install-dev save-session
 
 install-dev:
 	pip install -e ".[dev]"
+
+save-session:
+	python3 scripts/save_session.py
 
 test:
 	pytest
