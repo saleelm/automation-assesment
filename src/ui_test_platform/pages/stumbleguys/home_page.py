@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from ui_test_platform.config.app_config import AppConfig
@@ -8,6 +9,8 @@ from ui_test_platform.pages.base_page import BasePage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Locator, Page
+
+logger = logging.getLogger("ui_test_platform.pages.home")
 
 
 class HomePage(BasePage):
@@ -42,12 +45,14 @@ class HomePage(BasePage):
 
     def navigate(self) -> HomePage:
         """Navigates to Home Page and waits for logo and main navigation anchors."""
+        logger.info("Navigating to Home Page and verifying logo")
         self.goto("/")
         self.expect_visible(self.logo, timeout=AppConfig.timeouts.navigate_expect)
         return self
 
     def open_login_modal(self) -> None:
         """Triggers the login modal from the header avatar dropdown."""
+        logger.info("Opening login modal from header avatar dropdown")
         trigger = self.avatar_menu_trigger
         self.expect_visible(trigger)
         trigger.click()

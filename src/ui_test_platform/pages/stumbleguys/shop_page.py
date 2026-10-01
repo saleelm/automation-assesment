@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from playwright.sync_api import expect
@@ -10,6 +11,8 @@ from ui_test_platform.pages.base_page import BasePage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Locator, Page
+
+logger = logging.getLogger("ui_test_platform.pages.shop")
 
 
 class ShopPage(BasePage):
@@ -57,12 +60,14 @@ class ShopPage(BasePage):
 
     def navigate(self) -> ShopPage:
         """Navigates to the Shop page and waits for shop anchors."""
+        logger.info("Navigating to Stumble Guys Web Shop (/shop)")
         self.goto("/shop")
         self.expect_visible(self.special_deals_header, timeout=AppConfig.timeouts.navigate_expect)
         return self
 
     def enter_username_and_validate(self, username: str) -> None:
         """Enters player username and submits validation."""
+        logger.info("Entering player username '%s' and clicking Validate", username)
         self.username_input.fill(username)
         # Verify validate button becomes active
         expect(self.validate_button).to_be_enabled(timeout=AppConfig.timeouts.action)
@@ -70,14 +75,18 @@ class ShopPage(BasePage):
 
     def select_first_available_offer(self) -> None:
         """Selects the first available shop offer to initiate checkout."""
+        logger.info("Selecting first available shop offer to trigger checkout")
         offer = self.first_purchasable_offer
         self.expect_visible(offer, timeout=AppConfig.timeouts.action)
         offer.click()
 
     def cancel_checkout_before_payment(self) -> None:
         """Safely dismisses or closes the checkout dialog without completing payment."""
+        logger.info("Safely cancelling checkout modal before payment confirmation")
         if self.modal_close_button.is_visible(timeout=3000):
+            logger.info("Clicking checkout modal close button")
             self.modal_close_button.click()
         else:
             # Press Escape key to safely dismiss modal
+            logger.info("Dispatching Escape key to safely dismiss checkout modal")
             self.page.keyboard.press("Escape")

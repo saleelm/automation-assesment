@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
@@ -11,9 +12,12 @@ from ui_test_platform.helpers.interstitial_session_helper import seed_interstiti
 if TYPE_CHECKING:
     from playwright.sync_api import BrowserContext, Page, Response
 
+logger = logging.getLogger("ui_test_platform.helpers.auth")
+
 
 def bootstrap_auth_storage_state(page: Page, context: BrowserContext) -> None:
     """Bootstraps authenticated session state for token or UI mode and persists storage state."""
+    logger.info("Bootstrapping auth storage state (mode=%s)...", AppConfig.auth_mode)
     seed_interstitial_skip_storage(context)
     val_path = AppConfig.session_validation_path
 

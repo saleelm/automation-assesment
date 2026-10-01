@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import random
 import re
 import time
 import urllib.request
 from urllib.error import HTTPError
+
+logger = logging.getLogger("ui_test_platform.helpers.email_otp")
 
 
 class MailServiceRateLimitError(Exception):
@@ -70,6 +73,7 @@ class TempMailClient:
         suffix = random.randint(100000, 999999)
         address = f"stumble_qa_{suffix}@{domain}"
         password = f"P@ss_{suffix}_Secure!"
+        logger.info("Provisioning disposable mailbox: %s", address)
 
         # Register account
         self._http_request(
@@ -85,6 +89,7 @@ class TempMailClient:
             data={"address": address, "password": password},
         )
         token = str(token_res.get("token", ""))
+        logger.info("Disposable mailbox provisioned successfully: %s", address)
         return address, token
 
     def wait_for_otp(
@@ -94,6 +99,7 @@ class TempMailClient:
         otp_pattern: str = r"\b(\d{6})\b",
     ) -> str:
         """Polls inbox until an email arrives and extracts the 6-digit OTP code."""
+        logger.info("Polling disposable mailbox for OTP email (timeout=%ds)...", timeout_sec)
         start_time = time.monotonic()
         poll_interval_sec = 2.0
 
@@ -112,7 +118,9 @@ class TempMailClient:
 
                     match = re.search(otp_pattern, text_body)
                     if match:
-                        return match.group(1)
+                        code = match.group(1)
+                        logger.info("Extracted OTP verification code: %s", code)
+                        return code
 
             # Monotonic poll delay without thread sleep
             slice_start = time.monotonic()

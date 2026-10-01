@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from ui_test_platform.config.app_config import AppConfig
@@ -9,6 +10,8 @@ from ui_test_platform.pages.base_page import BasePage
 
 if TYPE_CHECKING:
     from playwright.sync_api import Locator, Page
+
+logger = logging.getLogger("ui_test_platform.pages.login")
 
 
 class LoginPage(BasePage):
@@ -68,6 +71,7 @@ class LoginPage(BasePage):
 
     def enter_otp(self, code: str) -> None:
         """Enters 6-digit OTP code into either a single field or 6 discrete digit inputs."""
+        logger.info("Entering 6-digit OTP verification code: %s", code)
         inputs = self.otp_inputs
         count = inputs.count()
 
@@ -80,6 +84,7 @@ class LoginPage(BasePage):
             inputs.first.fill(code)
 
         if self.submit_button.is_visible(timeout=2000):
+            logger.info("Clicking submit button for OTP verification")
             self.submit_button.click()
 
     def navigate(self) -> LoginPage:
@@ -90,6 +95,7 @@ class LoginPage(BasePage):
 
     def open_login(self) -> None:
         """Opens login dropdown or dialog."""
+        logger.info("Opening login menu via avatar trigger")
         # Ensure header avatar is visible and clicked
         trigger = self.avatar_trigger
         self.expect_visible(trigger, timeout=AppConfig.timeouts.navigate_expect)
@@ -99,21 +105,25 @@ class LoginPage(BasePage):
 
     def login(self, email: str, password: str) -> None:
         """Fills login credentials and submits."""
+        logger.info("Executing login flow for email: %s", email)
         # Click login button to open auth dialog/redirect
         self.nav_login_button.click()
 
         if self.email_input.is_visible(timeout=3000):
+            logger.info("Entering email into login dialog")
             self.email_input.fill(email)
             if self.submit_button.is_visible(timeout=2000):
                 self.submit_button.click()
 
             if self.password_input.is_visible(timeout=3000):
+                logger.info("Entering password into login dialog")
                 self.password_input.fill(password)
                 if self.submit_button.is_visible(timeout=2000):
                     self.submit_button.click()
 
     def submit_invalid_credentials(self, email: str) -> None:
         """Submits invalid email/username to trigger form validation."""
+        logger.info("Submitting invalid credentials: '%s'", email)
         self.nav_login_button.click()
         if self.email_input.is_visible(timeout=3000):
             self.email_input.fill(email)

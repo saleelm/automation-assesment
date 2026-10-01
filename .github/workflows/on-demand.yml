@@ -27,6 +27,9 @@ on:
         required: false
         default: 'sanity'
 
+permissions:
+  contents: read
+
 jobs:
   test-matrix:
     runs-on: ubuntu-latest
