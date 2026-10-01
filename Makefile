@@ -1,6 +1,7 @@
 .PHONY: test test-list test-setup test-local-setup test-local test-local-list \
         test-headed test-web test-mobile test-android test-auth test-smoke test-sanity \
-        test-regression test-api test-e2e clean-results report report-allure report-allure-open \
+        test-regression test-api test-e2e clean-results clean-report clean-allure \
+        report report-allure report-allure-open \
         typecheck lint lint-fix format format-check lint-waits install-dev save-session
 
 install-dev:
@@ -59,6 +60,12 @@ test-e2e:
 
 clean-results:
 	rm -rf allure-results test-results allure-report junit-results
+
+clean-report:
+	rm -rf allure-report
+
+clean-allure:
+	rm -rf allure-results allure-report
 
 report:
 	allure serve allure-results
