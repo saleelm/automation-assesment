@@ -47,6 +47,8 @@ junit-results/
 cli-artifacts/
 .playwright/
 .playwright-cli/
+*.log
+test_execution.log
 
 # Playwright auth state (keep gitkeep)
 playwright/.auth/*

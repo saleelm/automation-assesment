@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
@@ -14,6 +15,8 @@ if TYPE_CHECKING:
 
     from playwright.sync_api import Locator, Page, Response
 
+logger = logging.getLogger("ui_test_platform.pages")
+
 
 class BasePage:
     """Base class for all Page Objects in the ui-test-platform framework."""
@@ -25,6 +28,7 @@ class BasePage:
     def goto(self, path: str = "/") -> None:
         """Navigates to relative or absolute path and handles cookie consent / gates."""
         target_url = path if path.startswith("http") else f"{AppConfig.base_url.rstrip('/')}/{path.lstrip('/')}"
+        logger.info("[%s] Navigating to: %s", self.__class__.__name__, target_url)
         self.page.goto(target_url, wait_until="domcontentloaded")
         self.dismiss_cookie_banner()
 
@@ -50,27 +54,32 @@ class BasePage:
         url_or_predicate: str | Callable[[str], bool],
         timeout: int | None = None,
     ) -> None:
+        logger.info("[%s] Waiting for URL: %s", self.__class__.__name__, url_or_predicate)
         self.page.wait_for_url(
             url_or_predicate,
             timeout=timeout or AppConfig.timeouts.expect,
         )
 
     def expect_title(self, text_or_regex: str, timeout: int | None = None) -> None:
+        logger.info("[%s] Expecting title to match: %s", self.__class__.__name__, text_or_regex)
         expect(self.page).to_have_title(
             text_or_regex,
             timeout=timeout or AppConfig.timeouts.expect,
         )
 
     def expect_url(self, text_or_regex: str, timeout: int | None = None) -> None:
+        logger.info("[%s] Expecting URL to match: %s", self.__class__.__name__, text_or_regex)
         expect(self.page).to_have_url(
             text_or_regex,
             timeout=timeout or AppConfig.timeouts.expect,
         )
 
     def expect_visible(self, locator: Locator, timeout: int | None = None) -> None:
+        logger.info("[%s] Expecting locator to be visible: %s", self.__class__.__name__, locator)
         expect(locator).to_be_visible(timeout=timeout or AppConfig.timeouts.expect)
 
     def reload(self) -> None:
+        logger.info("[%s] Reloading page", self.__class__.__name__)
         self.page.reload(wait_until="domcontentloaded")
         self.dismiss_cookie_banner()
 
@@ -83,6 +92,7 @@ class BasePage:
         timeout: int | None = None,
     ) -> AbstractContextManager[Response]:
         """Expects an API response matching HTTP method, path fragment, and optional status code."""
+        logger.info("[%s] Expecting API response: %s matching '%s'", self.__class__.__name__, method, url_includes)
 
         def predicate(response: Response) -> bool:
             if response.request.method.upper() != method.upper():

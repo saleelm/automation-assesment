@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -48,6 +49,23 @@ def pytest_configure(config: Config) -> None:
         results_dir = Path("junit-results")
         results_dir.mkdir(parents=True, exist_ok=True)
         config.option.xmlpath = str(results_dir / "results.xml")
+
+
+logger = logging.getLogger("ui_test_platform.runner")
+
+
+def pytest_runtest_setup(item: Item) -> None:
+    logger.info("▶▶ STARTING TEST: %s", item.nodeid)
+
+
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    if report.when == "call":
+        if report.passed:
+            logger.info("✔✔ PASSED TEST: %s", report.nodeid)
+        elif report.failed:
+            logger.error("✖✖ FAILED TEST: %s", report.nodeid)
+        elif report.skipped:
+            logger.warning("⚠⚠ SKIPPED TEST: %s", report.nodeid)
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:

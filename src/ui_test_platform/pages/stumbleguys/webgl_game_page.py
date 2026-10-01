@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from ui_test_platform.config.app_config import AppConfig
@@ -8,6 +9,8 @@ from ui_test_platform.pages.base_page import BasePage
 
 if TYPE_CHECKING:
     from playwright.sync_api import FloatRect, Locator, Page
+
+logger = logging.getLogger("ui_test_platform.pages.webgl")
 
 
 class WebGLGamePage(BasePage):
@@ -30,12 +33,14 @@ class WebGLGamePage(BasePage):
 
     def navigate(self) -> WebGLGamePage:
         """Navigates to the /play WebGL game portal."""
+        logger.info("Navigating to WebGL Game Portal (/play)")
         self.goto("/play")
         self.expect_visible(self.player_container, timeout=AppConfig.timeouts.navigate_expect)
         return self
 
     def is_webgl_supported(self) -> bool:
         """Evaluates browser WebGL context availability on the canvas."""
+        logger.info("Evaluating WebGL2/WebGL context availability in browser engine")
         result: bool = self.page.evaluate(
             """
             () => {
@@ -56,6 +61,7 @@ class WebGLGamePage(BasePage):
 
     def dispatch_canvas_click(self, relative_x: float = 0.5, relative_y: float = 0.5) -> None:
         """Clicks at proportional coordinates within the WebGL canvas viewport."""
+        logger.info("Dispatching canvas viewport click at relative (%.2f, %.2f)", relative_x, relative_y)
         box = self.get_canvas_bounding_box()
         if box:
             click_x = box["x"] + (box["width"] * relative_x)
@@ -64,5 +70,6 @@ class WebGLGamePage(BasePage):
 
     def dispatch_gameplay_keys(self, keys: list[str]) -> None:
         """Dispatches keyboard inputs (e.g. Space, W, A, S, D, Arrow keys) to the focused game canvas."""
+        logger.info("Dispatching gameplay keys: %s", keys)
         for key in keys:
             self.page.keyboard.press(key)
