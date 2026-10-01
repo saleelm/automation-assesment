@@ -129,3 +129,37 @@ class LoginPage(BasePage):
             self.email_input.fill(email)
             if self.submit_button.is_visible(timeout=2000):
                 self.submit_button.click()
+
+    def initiate_signup_or_login(self, email: str) -> None:
+        """Initiates the unified Scopely ID sign up / login pipeline for a given email."""
+        logger.info("Initiating sign up / login pipeline for: %s", email)
+        self.goto("/")
+        self.open_login()
+        self.nav_login_button.click()
+
+        # Click Continue with email
+        continue_email_btn = self.page.locator("button:has-text('Continue with email'):visible").first
+        self.expect_visible(continue_email_btn, timeout=AppConfig.timeouts.action)
+        continue_email_btn.click()
+
+        # Wait for redirect to Scopely ID authorization portal
+        scopely_email_input = self.page.locator("input[name='email'], input[placeholder*='email' i]").first
+        self.expect_visible(scopely_email_input, timeout=AppConfig.timeouts.navigate_expect)
+        logger.info("Entering email '%s' on Scopely ID portal", email)
+        scopely_email_input.fill(email)
+
+        scopely_continue_btn = self.page.locator("button:has-text('Continue'):visible").first
+        self.expect_visible(scopely_continue_btn, timeout=AppConfig.timeouts.action)
+        scopely_continue_btn.click()
+
+    def submit_scopely_signup_agreement(self) -> None:
+        """Agrees to terms on Scopely ID portal to trigger verification email dispatch."""
+        logger.info("Confirming Scopely account creation agreement")
+        agree_btn = self.page.locator("button:has-text('Agree and get sign up link')").first
+        self.expect_visible(agree_btn, timeout=AppConfig.timeouts.navigate_expect)
+        agree_btn.click()
+
+        # Assert confirmation screen is displayed
+        confirmation = self.page.get_by_text("Check your inbox!").first
+        self.expect_visible(confirmation, timeout=AppConfig.timeouts.navigate_expect)
+        logger.info("Scopely ID confirmed verification email dispatch successfully")

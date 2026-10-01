@@ -4,6 +4,9 @@
         report report-allure report-allure-open \
         typecheck lint lint-fix format format-check lint-waits install-dev save-session
 
+VENV ?= .venv
+BIN = $(if $(wildcard $(VENV)/bin/*),$(VENV)/bin/, )
+
 install-dev:
 	pip install -e ".[dev]"
 
@@ -77,19 +80,19 @@ report-allure-open:
 	allure open allure-report
 
 typecheck:
-	mypy src tests
+	$(BIN)mypy src tests
 
 lint:
-	ruff check . && $(MAKE) lint-waits
+	$(BIN)ruff check . && $(MAKE) lint-waits
 
 lint-fix:
-	ruff check . --fix
+	$(BIN)ruff check . --fix
 
 format:
-	ruff format .
+	$(BIN)ruff format .
 
 format-check:
-	ruff format --check .
+	$(BIN)ruff format --check .
 
 lint-waits:
 	! grep -rnE --exclude-dir=__pycache__ --include="*.py" "wait_for_timeout|time\.sleep" src tests

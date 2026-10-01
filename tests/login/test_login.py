@@ -67,3 +67,32 @@ class TestAuthentication:
         with step("Then the client is ready to extract and input 6-digit OTP code"):
             sample_otp = "123456"
             login_page.enter_otp(sample_otp)
+
+    @tags(Tag.E2E, Tag.LOGIN, Tag.AUTH)
+    @title("TC04 should automate new account signup and API mailbox verification")
+    def test_tc04_should_automate_new_account_signup_and_email_verification(self, login_page: LoginPage) -> None:
+        from ui_test_platform.helpers.email_otp_helper import (
+            MailServiceRateLimitError,
+            TempMailClient,
+        )
+
+        temp_mail = TempMailClient()
+
+        with step("Given a fresh disposable test mailbox is provisioned via API"):
+            try:
+                email_addr, token = temp_mail.create_inbox()
+            except MailServiceRateLimitError as e:
+                pytest.skip(f"Public disposable mail service is rate-limited: {e}")
+            assert "@" in email_addr
+
+        with step("When the user initiates signup on the Stumble Guys portal"):
+            login_page.initiate_signup_or_login(email_addr)
+
+        with step("And the user confirms agreement on the identity provider"):
+            login_page.submit_scopely_signup_agreement()
+
+        with step("Then a verification email should be received in the automated mailbox"):
+            email_data = temp_mail.wait_for_verification_email(token=token, timeout_sec=30)
+            assert len(str(email_data.get("subject", ""))) > 0
+            assert "Scopely" in str(email_data.get("subject", "")) or "Stumble" in str(email_data.get("subject", ""))
+            assert "Scopely Account" in str(email_data.get("text", "")) or email_data.get("confirm_url") is not None
