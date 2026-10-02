@@ -29,12 +29,21 @@ Rather than a collection of ad-hoc test scripts, this platform demonstrates **QA
 
 | Area | Feature | Test Identifier | Platforms | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **Authentication** | Login Navigation & Trigger | `test_tc01_should_open_login_triggers_and_render_options` | Desktop + Mobile | Opens header avatar menu, triggers login dialog, asserts modal rendering. |
-| **Authentication** | Negative Form Validation | `test_tc02_should_validate_invalid_email_format` | Desktop + Mobile | Submits malformed credentials and asserts application resilience. |
-| **Shop** | Catalog & Identity | `test_tc01_should_display_special_deals_and_validate_username` | Desktop + Mobile | Browses shop catalog, verifies special deals hero, validates player username. |
+| **Authentication** | Login Navigation & Trigger | `test_tc01_should_open_login_triggers_and_render_options` | Desktop + Mobile | Opens header avatar menu, triggers login dialog, and asserts login button rendering. |
+| **Authentication** | Negative Form Validation | `test_tc02_should_validate_invalid_email_format` | Desktop + Mobile | Submits malformed credentials and asserts application stability without crashing. |
+| **Authentication** | ID Provider Flow Integration | `test_tc03_should_automate_email_otp_retrieval_and_entry` | Desktop + Mobile | Provisions automated inbox, initiates login pipeline, and verifies Scopely ID prompt. |
+| **Authentication** | Account Signup & Email Verify | `test_tc04_should_automate_new_account_signup_and_email_verification` | Desktop + Mobile | Provisions API mailbox, submits signup agreement, polls inbox, and verifies received confirmation link. |
+| **Authentication** | End-to-End Signup & OTP Login | `test_tc05_should_complete_end_to_end_signup_and_otp_login` | Desktop + Mobile | **Full E2E Auth:** Mailbox creation $\to$ signup $\to$ email confirmation $\to$ OTP retrieval $\to$ OTP submission $\to$ portal redirection & cookie dismissal. |
+| **Shop** | Catalog & Identity | `test_tc01_should_display_special_deals_and_validate_username` | Desktop + Mobile | Browses shop catalog, verifies special deals hero, and validates player username. |
 | **Shop** | Safe Purchase Flow | `test_tc02_should_safely_cancel_purchase_flow_before_confirmation` | Desktop + Mobile | **Mandatory Assessment Requirement:** Selects offer, opens checkout dialog, and safely cancels before payment entry. |
 | **WebGL Game (Bonus)** | Canvas Runtime Init | `test_tc01_should_initialize_webgl_game_container` | Desktop | Navigates to `/play`, asserts `#player` container mount, evaluates WebGL2/WebGL context. |
-| **WebGL Game (Bonus)** | Canvas Viewport Input | `test_tc02_should_dispatch_canvas_viewport_interactions` | Desktop | Computes canvas bounding box, clicks viewport center, dispatches navigation keys. |
+| **WebGL Game (Bonus)** | Canvas Viewport Input | `test_tc02_should_dispatch_canvas_viewport_interactions` | Desktop | Computes canvas bounding box, clicks viewport center, and dispatches navigation keys. |
+
+### 🔑 Automated Disposable Email & OTP Pipeline (`TempMailClient`)
+The authentication suite eliminates flaky hardcoded credentials and manual 2FA interventions by integrating an automated API-driven disposable mailbox service:
+- **Zero Credentials Flake:** Dynamically provisions fresh isolated inboxes (`@uberip.com` / `mail.tm` API) per test run.
+- **Link & OTP Extraction:** Asynchronously polls the automated inbox, parses HTML and text bodies to extract magic verification links and 6-digit Scopely ID OTP codes via regex.
+- **Rate-Limit Resilient:** Gracefully detects public mail service rate-limits (`MailServiceRateLimitError`) to avoid false test failures.
 
 ---
 

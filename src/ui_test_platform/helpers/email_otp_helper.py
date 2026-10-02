@@ -108,23 +108,20 @@ class TempMailClient:
             messages = messages_res.get("hydra:member")
 
             if isinstance(messages, list) and len(messages) > 0:
-                # Latest message
-                latest_msg = messages[0]
-                if isinstance(latest_msg, dict):
-                    msg_id = str(latest_msg.get("id", ""))
-                    # Fetch full email message body
-                    msg_details = self._http_request(f"/messages/{msg_id}", token=token)
-                    text_body = str(msg_details.get("text", "")) + " " + str(msg_details.get("intro", ""))
+                for msg in messages:
+                    if isinstance(msg, dict):
+                        msg_id = str(msg.get("id", ""))
+                        msg_details = self._http_request(f"/messages/{msg_id}", token=token)
+                        text_body = str(msg_details.get("text", "")) + " " + str(msg_details.get("intro", ""))
 
-                    match = re.search(otp_pattern, text_body)
-                    if match:
-                        code = match.group(1)
-                        logger.info("Extracted OTP verification code: %s", code)
-                        return code
+                        match = re.search(otp_pattern, text_body)
+                        if match:
+                            code = match.group(1)
+                            logger.info("Extracted OTP verification code: %s", code)
+                            return code
 
-            # Monotonic poll delay without thread sleep
-            slice_start = time.monotonic()
-            while time.monotonic() - slice_start < poll_interval_sec:
+            poll_start = time.monotonic()
+            while time.monotonic() - poll_start < poll_interval_sec:
                 pass
 
         raise TimeoutError(f"No OTP email received within {timeout_sec}s.")
@@ -144,9 +141,10 @@ class TempMailClient:
             messages = messages_res.get("hydra:member")
 
             if isinstance(messages, list) and len(messages) > 0:
-                latest_msg = messages[0]
-                if isinstance(latest_msg, dict):
-                    msg_id = str(latest_msg.get("id", ""))
+                for msg in messages:
+                    if not isinstance(msg, dict):
+                        continue
+                    msg_id = str(msg.get("id", ""))
                     msg_details = self._http_request(f"/messages/{msg_id}", token=token)
                     text_body = str(msg_details.get("text", "")) + " " + str(msg_details.get("intro", ""))
                     html_raw = msg_details.get("html", "")
@@ -156,20 +154,44 @@ class TempMailClient:
                     otp_match = re.search(r"\b(\d{6})\b", text_body)
                     otp_code = otp_match.group(1) if otp_match else None
 
-                    # Extract confirmation link if present
-                    link_match = re.search(r"href=[\x27\x22](https://[^\x27\x22]+)[\x27\x22]", html_content)
-                    confirm_url = link_match.group(1) if link_match else None
+                    # Extract confirmation / magic sign-in links
+                    auth_links = re.findall(r"href=[\x27\x22](https://[^\x27\x22\s]+)[\x27\x22]", html_content)
+                    confirm_url = None
+                    auth_keywords = ["verify", "confirm", "token", "auth", "signin", "signup", "callback"]
+                    for link in auth_links:
+                        if any(k in link.lower() for k in auth_keywords):
+                            confirm_url = link
+                            break
+                    if not confirm_url and auth_links:
+                        ignored_exts = [".png", ".jpg", ".svg", ".css"]
+                        for link in auth_links:
+                            if "scopely" in link.lower() and not any(ext in link.lower() for ext in ignored_exts):
+                                confirm_url = link
+                                break
+                    if not confirm_url and auth_links:
+                        confirm_url = auth_links[0]
 
-                    logger.info("Verification message received! Subject: %s", latest_msg.get("subject"))
+                    # Also check plain text body for URL if HTML had no auth links
+                    if not confirm_url:
+                        text_url_match = re.search(r"(https://id\.scopely\.com[^\s]+)", text_body)
+                        if text_url_match:
+                            confirm_url = text_url_match.group(1)
+
+                    subject_str = str(msg.get("subject", ""))
+                    logger.info(
+                        "Verification message received! Subject: %s | Confirm URL: %s",
+                        subject_str,
+                        confirm_url,
+                    )
                     return {
-                        "subject": str(latest_msg.get("subject", "")),
+                        "subject": subject_str,
                         "text": text_body,
                         "otp": otp_code,
                         "confirm_url": confirm_url,
                     }
 
-            slice_start = time.monotonic()
-            while time.monotonic() - slice_start < poll_interval_sec:
+            poll_start = time.monotonic()
+            while time.monotonic() - poll_start < poll_interval_sec:
                 pass
 
         raise TimeoutError(f"No verification email received within {timeout_sec}s.")
