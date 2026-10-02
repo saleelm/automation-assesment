@@ -1,0 +1,13 @@
+{
+  "name": "ui-test-platform-appium",
+  "private": true,
+  "description": "Appium 2 server + UiAutomator2 driver for real Android Chrome execution",
+  "scripts": {
+    "appium": "appium --address 127.0.0.1 --port 4723 --allow-insecure chromedriver_autodownload",
+    "appium:install-driver": "appium driver list --installed 2>&1 | grep -q uiautomator2 || appium driver install uiautomator2"
+  },
+  "devDependencies": {
+    "appium": "^2.15.0",
+    "appium-uiautomator2-driver": "^3.9.0"
+  }
+}

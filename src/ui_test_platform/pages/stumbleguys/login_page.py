@@ -144,16 +144,19 @@ class LoginPage(BasePage):
     def open_login(self) -> None:
         """Opens login dropdown or dialog."""
         logger.info("Opening login menu via avatar trigger")
+        self.dismiss_cookie_banner()
         # Ensure header avatar is visible and clicked
         trigger = self.avatar_trigger
         self.expect_visible(trigger, timeout=AppConfig.timeouts.navigate_expect)
         trigger.click()
+        self.dismiss_cookie_banner()
         btn = self.nav_login_button
         self.expect_visible(btn, timeout=AppConfig.timeouts.action)
 
     def login(self, email: str, password: str) -> None:
         """Fills login credentials and submits."""
         logger.info("Executing login flow for email: %s", email)
+        self.dismiss_cookie_banner()
         # Click login button to open auth dialog/redirect
         self.nav_login_button.click()
 
@@ -172,6 +175,7 @@ class LoginPage(BasePage):
     def submit_invalid_credentials(self, email: str) -> None:
         """Submits invalid email/username to trigger form validation."""
         logger.info("Submitting invalid credentials: '%s'", email)
+        self.dismiss_cookie_banner()
         self.nav_login_button.click()
         if self.email_input.is_visible(timeout=3000):
             self.email_input.fill(email)

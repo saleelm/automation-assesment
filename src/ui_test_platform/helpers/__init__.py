@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ui_test_platform.helpers.appium_helper import AppiumRuntime
 from ui_test_platform.helpers.async_helper import poll_condition
 from ui_test_platform.helpers.auth_helper import (
     bootstrap_auth_storage_state,
@@ -19,6 +20,7 @@ from ui_test_platform.helpers.user_credential_store import (
 )
 
 __all__ = [
+    "AppiumRuntime",
     "MailServiceRateLimitError",
     "MobileHelper",
     "RandomDataHelper",

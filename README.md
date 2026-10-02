@@ -49,67 +49,247 @@ The authentication suite eliminates flaky hardcoded credentials and manual 2FA i
 
 ## 3. Technology Stack
 
-- **Core Engine:** Python (3.11+) + Playwright (Sync API)
+- **Core Engine:** Python (3.11+) + Playwright (Sync API) + Appium 2 (real Android Chrome via CDP attach)
 - **Test Runner:** Pytest 8+, `pytest-playwright`, `pytest-xdist` (parallel execution with `filelock`), `pytest-split`
 - **Linting & Formatting:** Ruff (strict linting, ban imports rule, formatting)
 - **Type Safety:** Mypy (`strict = true`, no implicit `Any`, full type annotations)
 - **Reporting:** Allure Framework (`allure-pytest`) with step-level BDD reporting and failure attachments
-- **CI/CD:** GitHub Actions Matrix (`on-demand.yml`, `sanity.yml`)
+- **CI/CD:** GitHub Actions (`on-demand.yml`, `sanity.yml` targeting Desktop Web)
 - **Containerization:** Docker (`Dockerfile`)
 
 ---
 
-## 4. Quick Start & Execution
+## 4. Step-by-Step Setup & Execution Guide
 
-### Prerequisites
-- Python 3.11+
-- Virtual environment (`venv` or `poetry`)
+Follow these sequential steps to set up, configure, and run tests locally or on real devices.
 
-### Setup
+### Step 1: Prerequisites
+
+Make sure the following tools are installed on your machine:
+- **Python 3.11+** (`python3 --version`)
+- **Node.js 18+ & npm** (required only for Appium/Android execution: `node -v`, `npm -v`)
+- **Android SDK & `adb`** (required only for real Android execution: `adb version`)
+- **Allure CLI** (optional for viewing HTML reports: `brew install allure` or `npm install -g allure-commandline`)
+
+---
+
+### Step 2: Clone the Repository & Create Virtual Environment
+
 ```bash
-# Clone the repository
-git clone https://github.com/example/stumbleguys-automation.git
-cd stumbleguys-automation
+# 1. Clone repository
+git clone git@github.com:saleelm/automation-assesment.git
+cd automation-assesment
 
-# Create virtual environment
+# 2. Create Python virtual environment
 python3 -m venv .venv
+
+# 3. Activate virtual environment
+# On macOS / Linux:
 source .venv/bin/activate
+# On Windows PowerShell:
+# .venv\Scripts\Activate.ps1
+```
 
-# Install dependencies in editable mode
+---
+
+### Step 3: Install Python Dependencies & Playwright Browsers
+
+```bash
+# 1. Install project dependencies in editable mode
 make install-dev
+# or: pip install -e ".[dev]"
 
-# Install Playwright browser binaries
+# 2. Install Playwright Chromium browser binary
 playwright install chromium
 ```
 
-### Running Tests
+---
 
+### Step 4: (Optional) Install and Setup ADB & Android SDK
+ 
+To run tests against real Android devices or Android emulators (`--platform android-device`), `adb` (Android Debug Bridge) is required.
+
+#### Option A: Quick Install via Homebrew (macOS)
 ```bash
-# 1. Desktop Web (Default)
+brew install android-platform-tools
+```
+
+#### Option B: Via Android Studio SDK (macOS / Linux / Windows)
+If Android Studio is already installed, add the platform-tools directory to your shell PATH:
+
+- **macOS (`~/.zshrc`):**
+  ```bash
+  export ANDROID_HOME=$HOME/Library/Android/sdk
+  export PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH
+  ```
+  Apply changes:
+  ```bash
+  source ~/.zshrc
+  ```
+
+- **Linux (`~/.bashrc`):**
+  ```bash
+  export ANDROID_HOME=$HOME/Android/Sdk
+  export PATH=$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH
+  ```
+  Apply changes:
+  ```bash
+  source ~/.bashrc
+  ```
+
+#### Verify ADB Installation:
+```bash
+adb version
+```
+
+---
+
+### Step 5: (Optional) Setup Appium 2 & Start Device / Emulator
+
+1. **Install Appium 2 & UiAutomator2 driver:**
+   ```bash
+   make install-appium
+   ```
+
+2. **Connect a Real Android Device OR Start an Android Emulator:**
+   - **Real Device:**
+     - Enable **Developer Options** and **USB Debugging** on the phone.
+     - Connect via USB and confirm the RSA authorization prompt.
+   - **Android Emulator:**
+     - List available AVDs:
+       ```bash
+       emulator -list-avds
+       ```
+     - Start emulator (e.g., `Medium_Phone`):
+       ```bash
+       emulator -avd Medium_Phone &
+       ```
+
+3. **Verify Device/Emulator is Detected by ADB:**
+   ```bash
+   adb devices
+   ```
+   *(Ensure the output lists your device/emulator with status `device`, e.g., `emulator-5554 device` or `<serial> device`).*
+
+4. Ensure Google Chrome is installed and up-to-date on the device/emulator.
+
+---
+
+### Step 6: Running Tests
+
+You can run the suite across different platforms and granular test tags:
+
+#### 1. Desktop Web (Default)
+```bash
+# Using Makefile shortcut:
 make test-web
-# or: pytest --platform web
 
-# 2. Mobile Web Emulation (Pixel 7 / iPhone viewport & touch)
-make test-mobile
-# or: pytest --platform mobile-emulated
-
-# 3. Specific Feature Suites
-make test-auth         # Run login tests
-pytest -m shop         # Run shop & safe purchase tests
-pytest -m webgl        # Run WebGL canvas bonus tests
-
-# 4. Static Analysis & Flakiness Verification
-make lint              # Verifies Ruff + bans time.sleep / wait_for_timeout
-make typecheck         # Verifies mypy --strict
-make format-check      # Verifies PEP8 formatting
+# Or directly with pytest:
+pytest --platform web
 ```
 
-### Generating Allure Reports
+#### 2. Mobile Web Emulation (Pixel 7 / iPhone Viewport & Touch Events)
 ```bash
-# Generate and open interactive Allure report
-make report-allure
-make report-allure-open
+# Using Makefile shortcut:
+make test-mobile
+
+# Or directly with pytest:
+pytest --platform mobile-emulated
 ```
+
+#### 3. Real Android Device via Appium + CDP Attach
+```bash
+# Ensure Appium server is running (or pytest will auto-spawn it)
+make appium
+
+# In another terminal (with .venv activated):
+make test-android
+# Or specify explicit device UDID and Appium port:
+# ANDROID_SERIAL=<device_udid> APPIUM_PORT=4723 pytest --platform android-device
+```
+
+#### 4. Run by Feature Marker / Tag
+```bash
+# Authentication tests
+make test-auth
+# or: pytest -m auth
+
+# Shop & Safe Purchase tests
+pytest -m shop
+
+# WebGL Game Canvas tests
+pytest -m webgl
+
+# Smoke suite
+make test-smoke
+
+# Sanity suite
+make test-sanity
+```
+
+#### 5. Headed Mode (Watch Browser Execution)
+```bash
+pytest --platform web --headed
+```
+
+---
+
+### Step 7: Code Quality & Static Analysis Gates
+
+Run quality verification to ensure linting, zero-wait policies, and strict types pass:
+
+```bash
+# 1. Run Ruff linter and zero-wait enforcement (bans time.sleep and wait_for_timeout)
+make lint
+
+# 2. Run Mypy strict type checking
+make typecheck
+
+# 3. Check code formatting
+make format-check
+
+# 4. Auto-format code
+make format
+```
+
+---
+
+### Step 8: Generating and Viewing Allure Reports
+
+After running tests with `--alluredir=allure-results`:
+
+```bash
+# Generate static HTML report
+make report-allure
+
+# Open interactive Allure report in your default browser
+make report-allure-open
+
+# Or serve live directly from test results
+make report
+```
+
+---
+
+### Step 9: Running in Docker
+
+Run the entire suite in a reproducible headless container:
+
+```bash
+# Build Docker image
+docker build -t ui-test-platform .
+
+# Run test suite inside container
+docker run --rm -v $(pwd)/allure-results:/app/allure-results ui-test-platform
+```
+
+---
+
+### Step 10: CI/CD Pipeline (GitHub Actions)
+
+The CI/CD pipeline runs on GitHub Actions:
+- **Sanity Workflow (`.github/workflows/sanity.yml`):** Automatically triggered on every Push, PR, and daily schedule. Executes the sanity test suite against the **Desktop Web** platform in headless mode.
+- **On-Demand Workflow (`.github/workflows/on-demand.yml`):** Manually triggered via GitHub UI (`workflow_dispatch`) with customizable parameters (environment, marker filter) targeting the **Desktop Web** platform.
 
 ---
 
@@ -144,4 +324,5 @@ The assistant automatically:
 
 1. **Authentication Mode:** The Stumble Guys web portal uses dynamic OAuth/Scopely ID modal interactions and Usercentrics CMP cookie banners. The framework includes proactive banner dismissal and negative credential validation flows.
 2. **Safe Purchase Constraint:** In strict adherence to assessment rules, all purchase flows terminate before payment confirmation or submission of credit card details.
-3. **Real Device Execution:** `--platform android-device` utilizes Playwright's native Android adb bridge. In CI environments without physical hardware attached, `--platform mobile-emulated` is used for 100% deterministic mobile browser testing.
+3. **Real Device Execution:** `--platform android-device` uses **Appium 2 + UiAutomator2** to launch Chrome on a real device or emulator, then attaches Playwright over CDP so the same Page Objects run unchanged.
+4. **CI Scope:** Continuous Integration pipelines (GitHub Actions) run on headless Linux runners targeting the **Desktop Web** platform for high-speed, deterministic verification.
