@@ -60,10 +60,94 @@ class TestAuthentication:
             assert len(token) > 0
 
         with step("When the user initiates login with the automated email"):
-            login_page.goto("/")
-            login_page.open_login()
-            login_page.submit_invalid_credentials(email_addr)
+            login_page.initiate_signup_or_login(email_addr)
 
-        with step("Then the client is ready to extract and input 6-digit OTP code"):
-            sample_otp = "123456"
-            login_page.enter_otp(sample_otp)
+        with step("Then the identity provider renders the authentication prompt"):
+            auth_prompt = login_page.page.locator(
+                "button:has-text('Agree and get sign up link'), "
+                "input[autocomplete='one-time-code'], "
+                "input[inputmode='numeric']"
+            ).first
+            expect(auth_prompt).to_be_visible(timeout=AppConfig.timeouts.navigate_expect)
+
+    @tags(Tag.E2E, Tag.LOGIN, Tag.AUTH)
+    @title("TC04 should automate new account signup and API mailbox verification")
+    def test_tc04_should_automate_new_account_signup_and_email_verification(self, login_page: LoginPage) -> None:
+        from ui_test_platform.helpers.email_otp_helper import (
+            MailServiceRateLimitError,
+            TempMailClient,
+        )
+
+        temp_mail = TempMailClient()
+
+        with step("Given a fresh disposable test mailbox is provisioned via API"):
+            try:
+                email_addr, token = temp_mail.create_inbox()
+            except MailServiceRateLimitError as e:
+                pytest.skip(f"Public disposable mail service is rate-limited: {e}")
+            assert "@" in email_addr
+
+        with step("When the user initiates signup on the Stumble Guys portal"):
+            login_page.initiate_signup_or_login(email_addr)
+
+        with step("And the user confirms agreement on the identity provider"):
+            login_page.submit_scopely_signup_agreement()
+
+        with step("Then a verification email should be received in the automated mailbox"):
+            email_data = temp_mail.wait_for_verification_email(token=token, timeout_sec=30)
+            assert len(str(email_data.get("subject", ""))) > 0
+            assert "Scopely" in str(email_data.get("subject", "")) or "Stumble" in str(email_data.get("subject", ""))
+            assert "Scopely Account" in str(email_data.get("text", "")) or email_data.get("confirm_url") is not None
+
+    @tags(Tag.E2E, Tag.LOGIN, Tag.AUTH)
+    @title("TC05 should complete end-to-end signup and email verification login")
+    def test_tc05_should_complete_end_to_end_signup_and_otp_login(self, login_page: LoginPage) -> None:
+        from ui_test_platform.helpers.email_otp_helper import (
+            MailServiceRateLimitError,
+            TempMailClient,
+        )
+
+        temp_mail = TempMailClient()
+
+        with step("Given a fresh disposable test mailbox is provisioned via API"):
+            try:
+                email_addr, token = temp_mail.create_inbox()
+            except MailServiceRateLimitError as e:
+                pytest.skip(f"Public disposable mail service is rate-limited: {e}")
+            assert "@" in email_addr
+
+        with step("When the user initiates signup on the Stumble Guys portal"):
+            login_page.initiate_signup_or_login(email_addr)
+
+        with step("And the user agrees to terms to dispatch the signup verification link"):
+            login_page.submit_scopely_signup_agreement()
+
+        with step("And the signup confirmation link is retrieved from the automated inbox"):
+            email_data = temp_mail.wait_for_verification_email(token=token, timeout_sec=45)
+            confirm_url = email_data.get("confirm_url")
+            assert confirm_url is not None, "Verification link not found in email"
+
+        with step("And the user visits the confirmation link to complete email verification"):
+            login_page.page.goto(confirm_url, wait_until="networkidle")
+
+        with step("When the user returns to the portal to log in with the verified email"):
+            login_page.initiate_signup_or_login(email_addr)
+
+        with step("And the 6-digit login OTP code is retrieved from the automated inbox"):
+            otp_code = temp_mail.wait_for_otp(token=token, timeout_sec=45)
+            assert len(otp_code) == 6
+
+        with step("Then the user enters the 6-digit OTP code to complete authentication"):
+            login_page.enter_otp(otp_code)
+            login_page.page.wait_for_url(
+                lambda u: "stumbleguys.com" in str(urlparse(u).hostname),
+                timeout=30000,
+            )
+            app_host = urlparse(AppConfig.base_url).hostname
+            current_host = urlparse(login_page.page.url).hostname
+            assert current_host == app_host or "stumbleguys" in str(current_host)
+            login_page.dismiss_cookie_banner()
+
+
+
+

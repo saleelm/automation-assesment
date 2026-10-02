@@ -133,6 +133,7 @@ def context(
     ctx = browser.new_context(**browser_context_args)
     ctx.set_default_timeout(AppConfig.timeouts.action)
     ctx.set_default_navigation_timeout(AppConfig.timeouts.navigation)
+    ctx.route("**/*usercentrics*", lambda route: route.abort())
     yield ctx
     ctx.close()
 

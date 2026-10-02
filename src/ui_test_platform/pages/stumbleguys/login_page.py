@@ -63,29 +63,58 @@ class LoginPage(BasePage):
     def otp_inputs(self) -> Locator:
         return self.page.locator(
             "input[autocomplete='one-time-code']:visible, "
+            "input[inputmode='numeric']:visible, "
             "input[aria-label*='digit' i]:visible, "
             "input[placeholder*='code' i]:visible, "
             "input[maxlength='6']:visible, "
+            "input[maxlength='1']:visible, "
             "input[type='tel']:visible"
         )
 
     def enter_otp(self, code: str) -> None:
         """Enters 6-digit OTP code into either a single field or 6 discrete digit inputs."""
         logger.info("Entering 6-digit OTP verification code: %s", code)
+
+        # Wait for OTP input field to appear
+        first_input = self.page.locator(
+            "input[autocomplete='one-time-code'], "
+            "input[inputmode='numeric'], "
+            "input[aria-label*='digit' i], "
+            "input[placeholder*='code' i], "
+            "input[maxlength='6'], "
+            "input[maxlength='1'], "
+            "input[type='tel']"
+        ).first
+        self.expect_visible(first_input, timeout=AppConfig.timeouts.navigate_expect)
+
         inputs = self.otp_inputs
         count = inputs.count()
+        logger.info("Found %d OTP input element(s)", count)
 
         if count >= 6:
             # 6 separate digit inputs
             for i in range(min(6, len(code))):
+                inputs.nth(i).click()
                 inputs.nth(i).fill(code[i])
         elif count >= 1:
             # Single consolidated OTP field
+            inputs.first.click()
             inputs.first.fill(code)
 
-        if self.submit_button.is_visible(timeout=2000):
-            logger.info("Clicking submit button for OTP verification")
-            self.submit_button.click()
+        # Check for submit / verify button if form didn't auto-submit
+        verify_btn = self.page.locator(
+            "button:has-text('Verify'):visible, button:has-text('Submit'):visible, "
+            "button:has-text('Sign In'):visible, button:has-text('Log In'):visible, "
+            "button:has-text('Continue'):visible, form button[type='submit']:visible"
+        ).first
+
+        try:
+            if verify_btn.is_visible(timeout=3000) and verify_btn.is_enabled(timeout=2000):
+                logger.info("Clicking submit/verify button for OTP verification")
+                verify_btn.click(timeout=5000)
+        except Exception as e:
+            logger.info("Verify button not clickable or auto-submitted: %s", e)
+
 
     def navigate(self) -> LoginPage:
         """Navigates to home page and triggers the login flow."""
@@ -129,3 +158,37 @@ class LoginPage(BasePage):
             self.email_input.fill(email)
             if self.submit_button.is_visible(timeout=2000):
                 self.submit_button.click()
+
+    def initiate_signup_or_login(self, email: str) -> None:
+        """Initiates the unified Scopely ID sign up / login pipeline for a given email."""
+        logger.info("Initiating sign up / login pipeline for: %s", email)
+        self.goto("/")
+        self.open_login()
+        self.nav_login_button.click()
+
+        # Click Continue with email
+        continue_email_btn = self.page.locator("button:has-text('Continue with email'):visible").first
+        self.expect_visible(continue_email_btn, timeout=AppConfig.timeouts.action)
+        continue_email_btn.click()
+
+        # Wait for Scopely ID authorization portal (identified by unique placeholder)
+        scopely_email_input = self.page.locator("input[placeholder*='example.com']").first
+        self.expect_visible(scopely_email_input, timeout=AppConfig.timeouts.navigate_expect)
+        logger.info("Entering email '%s' on Scopely ID portal", email)
+        scopely_email_input.fill(email)
+
+        scopely_continue_btn = self.page.locator("button:has-text('Continue'):visible").first
+        self.expect_visible(scopely_continue_btn, timeout=AppConfig.timeouts.action)
+        scopely_continue_btn.click()
+
+    def submit_scopely_signup_agreement(self) -> None:
+        """Agrees to terms on Scopely ID portal to trigger verification email dispatch."""
+        logger.info("Confirming Scopely account creation agreement")
+        agree_btn = self.page.locator("button:has-text('Agree and get sign up link')").first
+        self.expect_visible(agree_btn, timeout=AppConfig.timeouts.navigate_expect)
+        agree_btn.click()
+
+        # Assert confirmation screen is displayed
+        confirmation = self.page.get_by_text("Check your inbox!").first
+        self.expect_visible(confirmation, timeout=AppConfig.timeouts.navigate_expect)
+        logger.info("Scopely ID confirmed verification email dispatch successfully")

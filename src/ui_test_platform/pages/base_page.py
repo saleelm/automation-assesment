@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
@@ -34,9 +35,10 @@ class BasePage:
 
     def dismiss_cookie_banner(self) -> None:
         """Dismisses cookie consent banners (e.g. Usercentrics CMP) if displayed."""
-        try:
+        with contextlib.suppress(Exception):
             # Common CMP selectors (Usercentrics shadow DOM / standard buttons)
             accept_button = self.page.locator(
+                "#usercentrics-cmp-ui button:has-text('Accept All'), "
                 "button#uc-accept-all-button, "
                 "button[data-testid='uc-accept-all-button'], "
                 "#usercentrics-root button:has-text('Accept'), "
@@ -45,9 +47,12 @@ class BasePage:
             ).first
             if accept_button.is_visible(timeout=2000):
                 accept_button.click()
-        except Exception:
-            # Non-blocking if consent banner does not appear
-            pass
+
+        # Ensure usercentrics overlay does not intercept pointer events
+        with contextlib.suppress(Exception):
+            self.page.add_style_tag(
+                content="#usercentrics-cmp-ui { display: none !important; pointer-events: none !important; }"
+            )
 
     def wait_for_url(
         self,
