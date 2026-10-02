@@ -17,6 +17,16 @@ class LoginLocators:
     SUBMIT_BUTTON: str = "button[type='submit'], #kc-login, button:has-text('Login'), button:has-text('Continue')"
     CLOSE_BUTTON: str = "button[aria-label='Close'], button:has-text('✕'), button:has-text('×')"
 
+    # Social Login (Facebook)
+    FACEBOOK_LOGIN_BUTTON: str = (
+        "button:has-text('Facebook'), button:has(img[alt*='facebook' i]), "
+        "[data-testid*='facebook' i], button:has-text('Continue with Facebook')"
+    )
+    FB_EMAIL_INPUT: str = "#email, input[name='email'], input[type='email']"
+    FB_PASSWORD_INPUT: str = "#pass, input[name='pass'], input[type='password']"
+    FB_LOGIN_BUTTON: str = "#loginbutton, button[name='login'], button[type='submit']"
+    FB_CONTINUE_BUTTON: str = "button:has-text('Continue as'), button[name='__CONFIRM__']"
+
     # Error alerts
     ERROR_CONTAINER: str = (
         "#input-error, .alert-error, .pf-c-alert.pf-m-danger, "

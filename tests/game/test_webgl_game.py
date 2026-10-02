@@ -9,7 +9,7 @@ from ui_test_platform.fixtures.pom.test_options import AppConfig, Tag, expect, s
 if TYPE_CHECKING:
     from ui_test_platform.pages.stumbleguys.webgl_game_page import WebGLGamePage
 
-pytestmark = [pytest.mark.game, pytest.mark.webgl, pytest.mark.unauthenticated]
+pytestmark = [pytest.mark.game, pytest.mark.webgl]
 
 
 class TestWebGLGamePortal:
