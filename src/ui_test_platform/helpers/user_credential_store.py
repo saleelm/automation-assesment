@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+import json
+import logging
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import TypedDict
+
+logger = logging.getLogger("ui_test_platform.helpers.user_credential_store")
+
+_STORE_PATH = Path("playwright/.auth/test_user.json")
+
+
+class TestUser(TypedDict):
+    """Persisted test user credentials used across test runs."""
+
+    email: str
+    mail_token: str
+    created_at: str
+    verified: bool
+
+
+def load_test_user() -> TestUser | None:
+    """Returns the persisted TestUser if the store file exists and is verified.
+
+    Returns None if the file is missing, corrupt, or the account is not yet verified.
+    """
+    if not _STORE_PATH.exists() or _STORE_PATH.stat().st_size == 0:
+        logger.debug("No persisted test user found at %s", _STORE_PATH)
+        return None
+
+    try:
+        raw = json.loads(_STORE_PATH.read_text(encoding="utf-8"))
+        user: TestUser = {
+            "email": str(raw["email"]),
+            "mail_token": str(raw["mail_token"]),
+            "created_at": str(raw["created_at"]),
+            "verified": bool(raw["verified"]),
+        }
+        if not user["verified"]:
+            logger.info("Persisted test user exists but is not yet verified — will re-run full signup")
+            return None
+        logger.info("Loaded persisted test user: %s (created %s)", user["email"], user["created_at"])
+        return user
+    except (KeyError, ValueError, json.JSONDecodeError) as exc:
+        logger.warning("test_user.json is corrupt or incomplete (%s) — will re-run full signup", exc)
+        return None
+
+
+def save_test_user(email: str, mail_token: str, *, verified: bool) -> None:
+    """Persists test user credentials to playwright/.auth/test_user.json.
+
+    Args:
+        email: The disposable email address used to create the account.
+        mail_token: The Mail.tm JWT token for reading the inbox.
+        verified: Whether email verification has been completed.
+    """
+    _STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    user: TestUser = {
+        "email": email,
+        "mail_token": mail_token,
+        "created_at": datetime.now(tz=UTC).isoformat(),
+        "verified": verified,
+    }
+    _STORE_PATH.write_text(json.dumps(user, indent=2), encoding="utf-8")
+    logger.info(
+        "Persisted test user to %s → email=%s verified=%s",
+        _STORE_PATH,
+        email,
+        verified,
+    )
+
+
+def clear_test_user() -> None:
+    """Removes the persisted test user file, forcing a full re-signup on next run."""
+    if _STORE_PATH.exists():
+        _STORE_PATH.unlink()
+        logger.info("Cleared persisted test user at %s", _STORE_PATH)

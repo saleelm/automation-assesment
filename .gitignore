@@ -64,3 +64,6 @@ node_modules/
 *.swo
 .vscode/
 .idea/
+.playwright-mcp/*
+screenshots/
+

@@ -58,6 +58,10 @@ class _AppConfig:
         return os.getenv("AUTH_MODE", "ui").strip().lower()
 
     @property
+    def login_provider(self) -> str:
+        return os.getenv("LOGIN_PROVIDER", "email").strip().lower()
+
+    @property
     def test_user_email(self) -> str:
         val = os.getenv("TEST_USER_EMAIL")
         if not val:
@@ -74,6 +78,24 @@ class _AppConfig:
     @property
     def credentials(self) -> UserCredentials:
         return UserCredentials(email=self.test_user_email, password=self.test_user_password)
+
+    @property
+    def fb_user_email(self) -> str:
+        val = os.getenv("FB_USER_EMAIL") or os.getenv("TEST_USER_FB_EMAIL")
+        if not val:
+            raise ConfigError("FB_USER_EMAIL is required when LOGIN_PROVIDER=facebook.")
+        return val.strip()
+
+    @property
+    def fb_user_password(self) -> str:
+        val = os.getenv("FB_USER_PASSWORD") or os.getenv("TEST_USER_FB_PASSWORD")
+        if not val:
+            raise ConfigError("FB_USER_PASSWORD is required when LOGIN_PROVIDER=facebook.")
+        return val.strip()
+
+    @property
+    def fb_credentials(self) -> UserCredentials:
+        return UserCredentials(email=self.fb_user_email, password=self.fb_user_password)
 
     @property
     def auth_issuer_url(self) -> str:

@@ -26,7 +26,7 @@ def platform(pytestconfig: pytest.Config) -> Platform:
 
 
 @pytest.fixture(scope="session")
-def auth_state(playwright: Playwright, browser_type: Any) -> Path:
+def auth_state(playwright: Playwright, browser_type: Any, pytestconfig: pytest.Config) -> Path:
     """Session-scoped fixture to ensure authenticated user session exists exactly once.
 
     Guarded by FileLock for xdist multi-process parallel execution safety.
@@ -40,7 +40,10 @@ def auth_state(playwright: Playwright, browser_type: Any) -> Path:
         if state_file.exists() and state_file.stat().st_size > 10:
             return state_file
 
-        browser = browser_type.launch(headless=True)
+        # Respect --headed flag: run bootstrap browser visibly so we can observe the
+        # OTP flow and avoid Scopely's headless bot-detection heuristics.
+        headed = pytestconfig.getoption("--headed", default=False)
+        browser = browser_type.launch(headless=not headed)
         context = browser.new_context(base_url=AppConfig.base_url)
         page = context.new_page()
 

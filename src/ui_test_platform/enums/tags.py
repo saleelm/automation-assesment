@@ -19,6 +19,11 @@ class Platform(StrEnum):
         return self in (Platform.MOBILE_EMULATED, Platform.ANDROID_DEVICE)
 
 
+class LoginProvider(StrEnum):
+    EMAIL = "email"
+    FACEBOOK = "facebook"
+
+
 class Tag(StrEnum):
     AUTH = "auth"
     SMOKE = "smoke"

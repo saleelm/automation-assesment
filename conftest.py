@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from ui_test_platform.enums.tags import Platform, Tag
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from _pytest.config import Config
     from _pytest.config.argparsing import Parser
     from _pytest.main import Session
@@ -66,6 +68,42 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
             logger.error("✖✖ FAILED TEST: %s", report.nodeid)
         elif report.skipped:
             logger.warning("⚠⚠ SKIPPED TEST: %s", report.nodeid)
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item: Item, call: pytest.CallInfo) -> Generator[None, None, None]:
+    outcome = yield
+    report = outcome.get_result()
+
+    if report.when in ("call", "setup") and report.failed:
+        page = item.funcargs.get("page")
+        if not page:
+            for val in item.funcargs.values():
+                if hasattr(val, "page") and hasattr(val.page, "screenshot"):
+                    page = val.page
+                    break
+
+        if page and hasattr(page, "screenshot") and not getattr(page, "is_closed", lambda: False)():
+            try:
+                screenshots_dir = Path("screenshots")
+                screenshots_dir.mkdir(parents=True, exist_ok=True)
+                safe_name = item.nodeid.replace("/", "_").replace("::", "__").replace("[", "_").replace("]", "")
+                screenshot_path = screenshots_dir / f"{safe_name}.png"
+                screenshot_bytes = page.screenshot(path=str(screenshot_path), full_page=True)
+                logger.error("📸 Failure screenshot saved at: %s", screenshot_path)
+
+                try:
+                    import allure
+
+                    allure.attach(
+                        screenshot_bytes,
+                        name=f"Failure Screenshot: {item.name}",
+                        attachment_type=allure.attachment_type.PNG,
+                    )
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.debug("Failed to capture screenshot on test failure: %s", e)
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
