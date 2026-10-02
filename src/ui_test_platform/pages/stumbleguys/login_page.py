@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from ui_test_platform.config.app_config import AppConfig
 from ui_test_platform.constants.login_locators import LoginLocators
@@ -92,28 +93,47 @@ class LoginPage(BasePage):
         logger.info("Found %d OTP input element(s)", count)
 
         if count >= 6:
-            # 6 separate digit inputs
-            for i in range(min(6, len(code))):
-                inputs.nth(i).click()
-                inputs.nth(i).fill(code[i])
+            # Click the first OTP box, then type all digits via the global keyboard.
+            # This mirrors real user behaviour: focus box 1, then press keys naturally.
+            # Scopely's widget auto-advances focus with each keydown event — using
+            # per-input press_sequentially breaks this because we re-click each box
+            # ourselves, potentially resetting the widget state.
+            inputs.first.click()
+            self.page.keyboard.type(code, delay=100)
         elif count >= 1:
             # Single consolidated OTP field
             inputs.first.click()
-            inputs.first.fill(code)
+            self.page.keyboard.type(code, delay=50)
 
-        # Check for submit / verify button if form didn't auto-submit
+        # If a verify / submit button is still visible (no auto-submit), click it.
+        # We do NOT wrap in expect_navigation here because the form may have already
+        # triggered a navigation from the last digit fill — wrapping causes a timeout.
         verify_btn = self.page.locator(
             "button:has-text('Verify'):visible, button:has-text('Submit'):visible, "
             "button:has-text('Sign In'):visible, button:has-text('Log In'):visible, "
             "button:has-text('Continue'):visible, form button[type='submit']:visible"
         ).first
-
         try:
             if verify_btn.is_visible(timeout=3000) and verify_btn.is_enabled(timeout=2000):
                 logger.info("Clicking submit/verify button for OTP verification")
-                verify_btn.click(timeout=5000)
+                verify_btn.click()
         except Exception as e:
-            logger.info("Verify button not clickable or auto-submitted: %s", e)
+            logger.info("Verify button not present or already auto-submitted: %s", e)
+
+        # After OTP submission (auto or manual), wait for the redirect back to the app.
+        # IMPORTANT: check the *hostname* — not a substring — because the Scopely authorize
+        # URL itself contains "stumbleguys.com" as the redirect_uri query parameter, which
+        # would cause a naive substring check to match immediately while still on Scopely.
+        try:
+            logger.info("Waiting for post-OTP redirect back to app domain...")
+            self.page.wait_for_url(
+                lambda url: urlparse(url).hostname in ("www.stumbleguys.com", "stumbleguys.com"),
+                wait_until="domcontentloaded",
+                timeout=AppConfig.timeouts.navigate_expect,
+            )
+            logger.info("Post-OTP redirect confirmed — now on: %s", self.page.url)
+        except Exception as e:
+            logger.warning("Post-OTP wait_for_url timed out or not needed: %s", e)
 
 
     def navigate(self) -> LoginPage:
@@ -180,6 +200,45 @@ class LoginPage(BasePage):
         scopely_continue_btn = self.page.locator("button:has-text('Continue'):visible").first
         self.expect_visible(scopely_continue_btn, timeout=AppConfig.timeouts.action)
         scopely_continue_btn.click()
+
+    @property
+    def facebook_login_button(self) -> Locator:
+        return self.page.locator(
+            "button:has-text('Facebook'):visible, button:has(img[alt*='facebook' i]):visible, "
+            "[data-testid*='facebook' i]:visible, button:has-text('Continue with Facebook'):visible"
+        ).first
+
+    def initiate_facebook_login(self) -> None:
+        """Opens login menu and triggers Facebook OAuth flow."""
+        logger.info("Initiating Facebook OAuth login flow")
+        self.goto("/")
+        self.open_login()
+        self.nav_login_button.click()
+        self.expect_visible(self.facebook_login_button, timeout=AppConfig.timeouts.action)
+        self.facebook_login_button.click()
+
+    def login_with_facebook(self, email: str, password: str) -> None:
+        """Automates Facebook OAuth login popup/redirect flow."""
+        logger.info("Logging in via Facebook OAuth for: %s", email)
+        self.initiate_facebook_login()
+
+        # Handle Facebook OAuth form
+        fb_email = self.page.locator(self.locators.FB_EMAIL_INPUT).first
+        self.expect_visible(fb_email, timeout=AppConfig.timeouts.navigate_expect)
+        fb_email.fill(email)
+
+        fb_pass = self.page.locator(self.locators.FB_PASSWORD_INPUT).first
+        self.expect_visible(fb_pass, timeout=AppConfig.timeouts.action)
+        fb_pass.fill(password)
+
+        fb_login_btn = self.page.locator(self.locators.FB_LOGIN_BUTTON).first
+        if fb_login_btn.is_visible():
+            fb_login_btn.click()
+
+        # Handle Facebook consent / continue confirmation if displayed
+        fb_continue_btn = self.page.locator(self.locators.FB_CONTINUE_BUTTON).first
+        if fb_continue_btn.is_visible():
+            fb_continue_btn.click()
 
     def submit_scopely_signup_agreement(self) -> None:
         """Agrees to terms on Scopely ID portal to trigger verification email dispatch."""

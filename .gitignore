@@ -60,3 +60,6 @@ playwright/.auth/*
 *.swo
 .vscode/
 .idea/
+.playwright-mcp/*
+screenshots/
+

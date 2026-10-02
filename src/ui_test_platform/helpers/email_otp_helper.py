@@ -97,9 +97,26 @@ class TempMailClient:
         token: str,
         timeout_sec: int = 60,
         otp_pattern: str = r"\b(\d{6})\b",
+        min_created_at: object | None = None,
     ) -> str:
-        """Polls inbox until an email arrives and extracts the 6-digit OTP code."""
+        """Polls inbox until an email arrives and extracts the 6-digit OTP code.
+
+        Always reads the *newest* message first to avoid returning a stale OTP
+        from a previous login attempt when the inbox has accumulated multiple emails.
+
+        Args:
+            token: Mail.tm JWT auth token for the inbox.
+            timeout_sec: Maximum seconds to wait for an OTP email.
+            otp_pattern: Regex pattern to extract the OTP code.
+            min_created_at: If provided (a datetime), only accept emails created
+                at or after this timestamp. Use this to ignore OTP emails from
+                previous login sessions that are still in the inbox.
+        """
+        import datetime as _dt
+
         logger.info("Polling disposable mailbox for OTP email (timeout=%ds)...", timeout_sec)
+        if min_created_at is not None:
+            logger.info("Only accepting OTP emails created at or after: %s", min_created_at)
         start_time = time.monotonic()
         poll_interval_sec = 2.0
 
@@ -108,23 +125,54 @@ class TempMailClient:
             messages = messages_res.get("hydra:member")
 
             if isinstance(messages, list) and len(messages) > 0:
-                for msg in messages:
-                    if isinstance(msg, dict):
-                        msg_id = str(msg.get("id", ""))
-                        msg_details = self._http_request(f"/messages/{msg_id}", token=token)
-                        text_body = str(msg_details.get("text", "")) + " " + str(msg_details.get("intro", ""))
+                # Sort newest-first so we always pick the OTP for the current
+                # login attempt, not a stale code from an earlier attempt.
+                sorted_messages = sorted(
+                    [m for m in messages if isinstance(m, dict)],
+                    key=lambda m: str(m.get("createdAt", "")),
+                    reverse=True,
+                )
+                for msg in sorted_messages:
+                    # Skip messages older than the current login attempt
+                    if min_created_at is not None:
+                        raw_ts = str(msg.get("createdAt", ""))
+                        try:
+                            msg_ts = _dt.datetime.fromisoformat(raw_ts)
+                            if msg_ts.tzinfo is None:
+                                msg_ts = msg_ts.replace(tzinfo=_dt.timezone.utc)
+                            if msg_ts < min_created_at:
+                                logger.debug(
+                                    "Skipping stale OTP email (createdAt=%s < min=%s)",
+                                    raw_ts,
+                                    min_created_at,
+                                )
+                                continue
+                        except (ValueError, TypeError):
+                            pass  # If we can't parse the timestamp, don't skip
 
-                        match = re.search(otp_pattern, text_body)
-                        if match:
-                            code = match.group(1)
-                            logger.info("Extracted OTP verification code: %s", code)
-                            return code
+                    msg_id = str(msg.get("id", ""))
+                    msg_details = self._http_request(f"/messages/{msg_id}", token=token)
+                    text_body = str(msg_details.get("text", "")) + " " + str(msg_details.get("intro", ""))
+
+                    match = re.search(otp_pattern, text_body)
+                    if match:
+                        code = match.group(1)
+                        logger.info(
+                            "Extracted OTP verification code: %s (from message %s, createdAt=%s)",
+                            code,
+                            msg_id,
+                            msg.get("createdAt", "unknown"),
+                        )
+                        return code
 
             poll_start = time.monotonic()
             while time.monotonic() - poll_start < poll_interval_sec:
                 pass
 
         raise TimeoutError(f"No OTP email received within {timeout_sec}s.")
+
+
+
 
     def wait_for_verification_email(
         self,
