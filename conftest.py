@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from ui_test_platform.enums.tags import Platform, Tag
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
+
     from _pytest.config import Config
     from _pytest.config.argparsing import Parser
     from _pytest.main import Session
@@ -69,7 +71,7 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_makereport(item: Item, call: pytest.CallInfo) -> Any:
+def pytest_runtest_makereport(item: Item, call: pytest.CallInfo) -> Generator[None, None, None]:
     outcome = yield
     report = outcome.get_result()
 
@@ -77,8 +79,8 @@ def pytest_runtest_makereport(item: Item, call: pytest.CallInfo) -> Any:
         page = item.funcargs.get("page")
         if not page:
             for val in item.funcargs.values():
-                if hasattr(val, "page") and hasattr(getattr(val, "page"), "screenshot"):
-                    page = getattr(val, "page")
+                if hasattr(val, "page") and hasattr(val.page, "screenshot"):
+                    page = val.page
                     break
 
         if page and hasattr(page, "screenshot") and not getattr(page, "is_closed", lambda: False)():
@@ -92,6 +94,7 @@ def pytest_runtest_makereport(item: Item, call: pytest.CallInfo) -> Any:
 
                 try:
                     import allure
+
                     allure.attach(
                         screenshot_bytes,
                         name=f"Failure Screenshot: {item.name}",

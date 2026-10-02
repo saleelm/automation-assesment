@@ -87,9 +87,9 @@ def bootstrap_auth_storage_state(page: Page, context: BrowserContext) -> None:
                         # Record time before login so we only accept OTPs sent for
                         # this specific session — not stale ones from previous runs.
                         from datetime import UTC, datetime
+
                         login_initiated_at = datetime.now(tz=UTC)
                         login_page.initiate_signup_or_login(email_addr)
-                        page.wait_for_timeout(3000)
                         otp_code = temp_mail.wait_for_otp(
                             token=mail_token,
                             timeout_sec=45,
@@ -107,16 +107,13 @@ def bootstrap_auth_storage_state(page: Page, context: BrowserContext) -> None:
                         login_page.initiate_signup_or_login(email_addr)
                         login_page.submit_scopely_signup_agreement()
 
-                        email_data = temp_mail.wait_for_verification_email(
-                            token=mail_token, timeout_sec=45
-                        )
+                        email_data = temp_mail.wait_for_verification_email(token=mail_token, timeout_sec=45)
                         confirm_url = email_data.get("confirm_url")
                         if confirm_url:
                             logger.info("Visiting signup confirmation link: %s", confirm_url)
                             page.goto(confirm_url, wait_until="networkidle")
 
                         login_page.initiate_signup_or_login(email_addr)
-                        page.wait_for_timeout(3000)
                         otp_code = temp_mail.wait_for_otp(token=mail_token, timeout_sec=45)
                         login_page.enter_otp(otp_code)
 

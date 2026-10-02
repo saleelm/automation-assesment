@@ -6,6 +6,7 @@ import random
 import re
 import time
 import urllib.request
+from datetime import UTC, datetime
 from urllib.error import HTTPError
 
 logger = logging.getLogger("ui_test_platform.helpers.email_otp")
@@ -97,7 +98,7 @@ class TempMailClient:
         token: str,
         timeout_sec: int = 60,
         otp_pattern: str = r"\b(\d{6})\b",
-        min_created_at: object | None = None,
+        min_created_at: datetime | None = None,
     ) -> str:
         """Polls inbox until an email arrives and extracts the 6-digit OTP code.
 
@@ -112,8 +113,6 @@ class TempMailClient:
                 at or after this timestamp. Use this to ignore OTP emails from
                 previous login sessions that are still in the inbox.
         """
-        import datetime as _dt
-
         logger.info("Polling disposable mailbox for OTP email (timeout=%ds)...", timeout_sec)
         if min_created_at is not None:
             logger.info("Only accepting OTP emails created at or after: %s", min_created_at)
@@ -137,9 +136,9 @@ class TempMailClient:
                     if min_created_at is not None:
                         raw_ts = str(msg.get("createdAt", ""))
                         try:
-                            msg_ts = _dt.datetime.fromisoformat(raw_ts)
+                            msg_ts = datetime.fromisoformat(raw_ts)
                             if msg_ts.tzinfo is None:
-                                msg_ts = msg_ts.replace(tzinfo=_dt.timezone.utc)
+                                msg_ts = msg_ts.replace(tzinfo=UTC)
                             if msg_ts < min_created_at:
                                 logger.debug(
                                     "Skipping stale OTP email (createdAt=%s < min=%s)",
@@ -170,9 +169,6 @@ class TempMailClient:
                 pass
 
         raise TimeoutError(f"No OTP email received within {timeout_sec}s.")
-
-
-
 
     def wait_for_verification_email(
         self,

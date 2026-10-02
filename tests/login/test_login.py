@@ -147,7 +147,3 @@ class TestAuthentication:
             current_host = urlparse(login_page.page.url).hostname
             assert current_host == app_host or "stumbleguys" in str(current_host)
             login_page.dismiss_cookie_banner()
-
-
-
-

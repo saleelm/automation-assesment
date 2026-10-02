@@ -135,7 +135,6 @@ class LoginPage(BasePage):
         except Exception as e:
             logger.warning("Post-OTP wait_for_url timed out or not needed: %s", e)
 
-
     def navigate(self) -> LoginPage:
         """Navigates to home page and triggers the login flow."""
         self.goto("/")
