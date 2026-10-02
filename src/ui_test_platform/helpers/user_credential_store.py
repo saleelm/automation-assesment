@@ -11,13 +11,14 @@ logger = logging.getLogger("ui_test_platform.helpers.user_credential_store")
 _STORE_PATH = Path("playwright/.auth/test_user.json")
 
 
-class TestUser(TypedDict):
+class TestUser(TypedDict, total=False):
     """Persisted test user credentials used across test runs."""
 
     email: str
     mail_token: str
     created_at: str
     verified: bool
+    username: str
 
 
 def load_test_user() -> TestUser | None:
@@ -37,6 +38,8 @@ def load_test_user() -> TestUser | None:
             "created_at": str(raw["created_at"]),
             "verified": bool(raw["verified"]),
         }
+        if raw.get("username"):
+            user["username"] = str(raw["username"])
         if not user["verified"]:
             logger.info("Persisted test user exists but is not yet verified — will re-run full signup")
             return None
@@ -47,13 +50,20 @@ def load_test_user() -> TestUser | None:
         return None
 
 
-def save_test_user(email: str, mail_token: str, *, verified: bool) -> None:
+def save_test_user(
+    email: str,
+    mail_token: str,
+    *,
+    verified: bool,
+    username: str | None = None,
+) -> None:
     """Persists test user credentials to playwright/.auth/test_user.json.
 
     Args:
         email: The disposable email address used to create the account.
         mail_token: The Mail.tm JWT token for reading the inbox.
         verified: Whether email verification has been completed.
+        username: Optional in-game player username.
     """
     _STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
     user: TestUser = {
@@ -62,13 +72,28 @@ def save_test_user(email: str, mail_token: str, *, verified: bool) -> None:
         "created_at": datetime.now(tz=UTC).isoformat(),
         "verified": verified,
     }
+    if username:
+        user["username"] = username
     _STORE_PATH.write_text(json.dumps(user, indent=2), encoding="utf-8")
     logger.info(
-        "Persisted test user to %s → email=%s verified=%s",
+        "Persisted test user to %s → email=%s verified=%s username=%s",
         _STORE_PATH,
         email,
         verified,
+        username,
     )
+
+
+def update_test_username(username: str) -> None:
+    """Updates or sets the in-game player username for the persisted test user."""
+    user = load_test_user()
+    if user:
+        save_test_user(
+            email=user["email"],
+            mail_token=user["mail_token"],
+            verified=user.get("verified", True),
+            username=username,
+        )
 
 
 def clear_test_user() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
@@ -142,3 +143,20 @@ class BasePage:
             predicate,
             timeout=timeout or AppConfig.timeouts.api_route_fetch,
         )
+
+    def take_screenshot(self, name: str = "screenshot") -> Path:
+        """Captures a screenshot of the current page and stores it in screenshots/."""
+        screenshot_dir = Path("screenshots")
+        screenshot_dir.mkdir(parents=True, exist_ok=True)
+        target_path = screenshot_dir / f"{name}.png"
+        logger.info("[%s] Capturing screenshot: %s", self.__class__.__name__, target_path)
+        self.page.screenshot(path=str(target_path))
+        with contextlib.suppress(Exception):
+            import allure
+
+            allure.attach.file(  # type: ignore[no-untyped-call]
+                str(target_path),
+                name=name,
+                attachment_type=allure.attachment_type.PNG,
+            )
+        return target_path
