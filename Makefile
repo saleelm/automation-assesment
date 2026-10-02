@@ -2,13 +2,21 @@
         test-headed test-web test-mobile test-android test-auth test-smoke test-sanity \
         test-regression test-api test-e2e clean-results clean-report clean-allure \
         report report-allure report-allure-open \
-        typecheck lint lint-fix format format-check lint-waits install-dev save-session
+        typecheck lint lint-fix format format-check lint-waits install-dev install-appium \
+        appium save-session
 
 VENV ?= .venv
 BIN = $(if $(wildcard $(VENV)/bin/*),$(VENV)/bin/, )
 
 install-dev:
 	pip install -e ".[dev]"
+
+install-appium:
+	npm install
+	npx appium driver list --installed 2>&1 | grep -q uiautomator2 || npx appium driver install uiautomator2
+
+appium:
+	npm exec -- appium --address 127.0.0.1 --port 4723 --allow-insecure chromedriver_autodownload
 
 save-session:
 	python3 scripts/save_session.py

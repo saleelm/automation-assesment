@@ -16,8 +16,10 @@ if TYPE_CHECKING:
 
     from playwright.sync_api import Browser, BrowserContext, Page, Playwright
 
+    from ui_test_platform.helpers.appium_helper import AppiumRuntime
 
-@pytest.fixture
+
+@pytest.fixture(scope="session")
 def platform(pytestconfig: pytest.Config) -> Platform:
     val = pytestconfig.getoption("--platform") or os.getenv("PLATFORM", Platform.WEB.value)
     return Platform(val)
@@ -94,42 +96,73 @@ def browser_context_args(
     return args
 
 
+@pytest.fixture(scope="session")
+def appium_runtime(platform: Platform, playwright: Playwright) -> Generator[AppiumRuntime | None, None, None]:
+    """Session-scoped Appium Chrome session with Playwright attached over CDP."""
+    from ui_test_platform.helpers.appium_helper import (
+        AppiumRuntime,
+        create_android_chrome_driver,
+        ensure_android_device,
+        ensure_appium_server,
+        remove_cdp_forward,
+        resolve_cdp_endpoint,
+    )
+
+    if platform != Platform.ANDROID_DEVICE:
+        yield None
+        return
+
+    service = None
+    driver = None
+    cdp_browser: Browser | None = None
+    udid: str | None = None
+    forwarded_port: int | None = None
+    try:
+        udid = ensure_android_device()
+        service = ensure_appium_server()
+        driver = create_android_chrome_driver(udid)
+        cdp_endpoint, forwarded_port = resolve_cdp_endpoint(driver, udid)
+        cdp_browser = playwright.chromium.connect_over_cdp(cdp_endpoint)
+        contexts = cdp_browser.contexts
+        playwright_context = contexts[0] if contexts else cdp_browser.new_context()
+        playwright_context.set_default_timeout(AppConfig.timeouts.action)
+        playwright_context.set_default_navigation_timeout(AppConfig.timeouts.navigation)
+        yield AppiumRuntime(
+            driver=driver,
+            cdp_browser=cdp_browser,
+            playwright_context=playwright_context,
+            service=service,
+            cdp_endpoint=cdp_endpoint,
+            forwarded_port=forwarded_port,
+        )
+    finally:
+        if cdp_browser is not None:
+            cdp_browser.close()
+        if driver is not None:
+            driver.quit()
+        if service is not None:
+            service.stop()
+        remove_cdp_forward(udid, forwarded_port)
+
+
 @pytest.fixture
 def context(
     request: pytest.FixtureRequest,
-    browser: Browser,
     browser_context_args: dict[str, Any],
     platform: Platform,
-    playwright: Playwright,
 ) -> Generator[BrowserContext, None, None]:
     """Provides a BrowserContext configured with timeouts and platform support."""
     if platform == Platform.ANDROID_DEVICE:
-        android_api = getattr(playwright, "android", None)
-        if android_api is None or not hasattr(android_api, "devices"):
-            pytest.fail(
-                "Playwright Android API is not available in the current environment. "
-                "Ensure adb is installed or use '--platform mobile-emulated'."
-            )
-        android_devices = android_api.devices()
-        if not android_devices:
-            pytest.fail(
-                "Platform is set to 'android-device' but no Android device/emulator was found via adb. "
-                "Ensure an adb device is connected or use '--platform mobile-emulated'."
-            )
-        target_serial = AppConfig.android_serial
-        device = (
-            next((d for d in android_devices if d.serial == target_serial), android_devices[0])
-            if target_serial
-            else android_devices[0]
-        )
-        ctx = device.launch_browser(pkg=AppConfig.android_chrome_package)
+        runtime = request.getfixturevalue("appium_runtime")
+        if runtime is None:
+            pytest.fail("Appium runtime was not initialized for --platform android-device.")
+        ctx: BrowserContext = runtime.playwright_context
         ctx.set_default_timeout(AppConfig.timeouts.action)
         ctx.set_default_navigation_timeout(AppConfig.timeouts.navigation)
         yield ctx
-        ctx.close()
-        device.close()
         return
 
+    browser: Browser = request.getfixturevalue("browser")
     ctx = browser.new_context(**browser_context_args)
     ctx.set_default_timeout(AppConfig.timeouts.action)
     ctx.set_default_navigation_timeout(AppConfig.timeouts.navigation)

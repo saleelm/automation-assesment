@@ -122,6 +122,33 @@ class _AppConfig:
         return os.getenv("ANDROID_CHROME_PACKAGE", "com.android.chrome").strip()
 
     @property
+    def android_device_name(self) -> str:
+        return os.getenv("ANDROID_DEVICE_NAME", "Android").strip()
+
+    @property
+    def appium_host(self) -> str:
+        return os.getenv("APPIUM_HOST", "127.0.0.1").strip()
+
+    @property
+    def appium_port(self) -> int:
+        return int(os.getenv("APPIUM_PORT", "4723"))
+
+    @property
+    def appium_server_url(self) -> str:
+        override = os.getenv("APPIUM_SERVER_URL", "").strip()
+        if override:
+            return override.rstrip("/")
+        return f"http://{self.appium_host}:{self.appium_port}"
+
+    @property
+    def appium_cdp_port(self) -> int:
+        return int(os.getenv("APPIUM_CDP_PORT", "9222"))
+
+    @property
+    def appium_auto_start(self) -> bool:
+        return os.getenv("APPIUM_AUTO_START", "true").strip().lower() in {"1", "true", "yes"}
+
+    @property
     def configured_context_option(self) -> str | None:
         val = os.getenv("CONTEXT_OPTION", "").strip()
         return val if val else None

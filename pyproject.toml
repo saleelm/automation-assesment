@@ -19,6 +19,7 @@ dependencies = [
     "pydantic>=2.5.0",
     "python-dotenv>=1.0.0",
     "allure-pytest>=2.13.0",
+    "Appium-Python-Client>=4.2.0",
 ]
 
 [project.optional-dependencies]
@@ -58,6 +59,8 @@ module = [
     "allure_pytest.*",
     "pytest_split.*",
     "filelock.*",
+    "appium.*",
+    "selenium.*",
 ]
 ignore_missing_imports = true
 
