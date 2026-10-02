@@ -1,0 +1,147 @@
+# feat(android): Add Android Setup with Appium Support
+
+## Overview
+This PR introduces **Appium 2 + UiAutomator2** integration to enable automation against real Android devices and emulators via Chrome's DevTools Protocol (CDP) attachment. Playwright Page Objects now seamlessly run on both Desktop Web and Android Chrome without code changes.
+
+## What Changed
+
+### 1. **Appium Integration**
+- Added `Appium 2.15.0` with `UiAutomator2 3.9.0` driver support
+- Created `appium_helper.py` with:
+  - ADB device detection and validation
+  - Appium server lifecycle management (auto-start, health checks)
+  - Chrome CDP endpoint resolution and local port forwarding
+  - Session teardown with cleanup
+
+### 2. **Configuration Enhancements**
+- Extended `AppConfig` with new Android/Appium properties:
+  - `android_device_name`, `appium_host`, `appium_port`, `appium_server_url`
+  - `appium_cdp_port`, `appium_auto_start` (default: true)
+
+### 3. **Fixture Architecture**
+- **New Session-Scoped `appium_runtime` Fixture:**
+  - Manages Appium WebDriver lifecycle
+  - Attaches Playwright browser over CDP
+  - Handles device detection, forwarding, and cleanup
+  - Returns `AppiumRuntime` dataclass with driver, CDP browser, and context
+  
+- **Updated `context` Fixture:**
+  - Replaced Playwright's deprecated Android API with Appium-backed approach
+  - Routes `--platform android-device` to use `appium_runtime`
+  - Falls back to standard browser context for web platforms
+
+### 4. **Dependency Updates**
+- `pyproject.toml`: Added `Appium-Python-Client>=4.2.0`
+- `package.json` (new): Appium 2 + UiAutomator2 driver
+- `Makefile`: Added `install-appium` and `appium` targets
+- `.gitignore`: Added `node_modules/`
+
+### 5. **Documentation & CI/CD**
+- **README.md overhaul:** Step-by-step setup guide for Android (Prerequisites → Device setup → Execution → Reporting)
+- **Workflow updates:**
+  - Removed matrix strategy for `mobile-emulated` and `android-device` platforms
+  - Focused `on-demand.yml` and `sanity.yml` on Desktop Web for CI reliability
+
+### 6. **Test Improvements**
+- Enhanced `base_page.dismiss_cookie_banner()` with:
+  - Direct JavaScript API call to Usercentrics (`window.UC_UI.acceptAllConsents()`)
+  - Shadow DOM queries for robust CMP dismissal
+  - Fallback DOM selectors
+- Added cookie banner dismissal checkpoints in `LoginPage` lifecycle
+
+## Technical Highlights
+
+### Why Appium + CDP Attach?
+- **Real Device Coverage:** Tests run on actual Android hardware, catching emulator-specific issues
+- **Native Interaction:** UiAutomator2 can interact with system dialogs, permissions, native UI
+- **Playwright Compatibility:** CDP attachment reuses all existing Page Objects — no Android-specific code paths
+- **Deterministic:** No emulator flakiness; real device behavior is canonical
+
+### Architecture
+```
+pytest --platform android-device
+    ↓
+[Session-scoped appium_runtime fixture]
+    ├─ ensure_android_device() → detect UDID
+    ├─ ensure_appium_server() → start/connect Appium
+    ├─ create_android_chrome_driver() → launch Chrome via UiAutomator2
+    ├─ resolve_cdp_endpoint() → extract Chrome DevTools port
+    └─ playwright.chromium.connect_over_cdp() → attach Playwright
+    ↓
+[BrowserContext fixture]
+    └─ Return Playwright context from Appium session
+    ↓
+Tests use standard page.goto(), page.click(), etc. (unmodified)
+```
+
+## Setup Instructions
+
+### Prerequisites
+- Python 3.11+, Node.js 18+, Android SDK + adb
+- Real Android device (USB debugging enabled) OR Android emulator (running)
+
+### Quick Start
+```bash
+make install-dev && make install-appium
+playwright install chromium
+make appium  # In one terminal
+
+# In another terminal:
+make test-android
+```
+
+### Detailed Guide
+See **README.md § Step 1–10** for comprehensive setup across all platforms.
+
+## Test Coverage
+- ✅ Desktop Web (existing)
+- ✅ Mobile Web Emulation (existing)
+- ✅ **Real Android Device (new)** — via Appium + CDP
+
+## CI/CD Impact
+- `sanity.yml` and `on-demand.yml` now run **Desktop Web only** for speed and determinism
+- Appium tests intended for **local developer execution** and optional CI pipelines with hardware
+
+## Breaking Changes
+- ❌ Removed Playwright's deprecated `playwright.android.devices()` API
+- ⚠️ Users relying on `--platform android-device` with Playwright Android API must update to Appium setup
+
+## Backwards Compatibility
+- ✅ `--platform web` unchanged
+- ✅ `--platform mobile-emulated` unchanged
+- ✅ All existing tests pass without modification
+
+## Files Modified
+- `.github/workflows/on-demand.yml` — Removed matrix strategy
+- `.github/workflows/sanity.yml` — Removed matrix strategy
+- `.gitignore` — Added node_modules/
+- `Makefile` — Added Appium targets
+- `README.md` — Comprehensive setup guide
+- `pyproject.toml` — Added Appium-Python-Client
+- `package.json` (new) — Appium 2 + UiAutomator2
+- `src/ui_test_platform/config/app_config.py` — Appium config properties
+- `src/ui_test_platform/fixtures/platform.py` — appium_runtime fixture
+- `src/ui_test_platform/helpers/appium_helper.py` (new) — Core Appium logic
+- `src/ui_test_platform/helpers/__init__.py` — Export AppiumRuntime
+- `src/ui_test_platform/pages/base_page.py` — Enhanced cookie banner dismissal
+- `src/ui_test_platform/pages/stumbleguys/login_page.py` — Cookie dismissal in login flow
+- `tests/login/test_login.py` — Minor formatting
+
+## Testing Recommendations
+1. Run locally with real device or emulator:
+   ```bash
+   make test-android
+   ```
+2. Verify CI workflows still pass for Desktop Web:
+   ```bash
+   make test-web
+   ```
+3. Smoke test mobile emulation:
+   ```bash
+   make test-mobile
+   ```
+
+## Notes
+- Appium auto-starts by default (`APPIUM_AUTO_START=true`). Disable by setting env var to `false` if you manage the server externally.
+- For CI/CD pipelines, omit Appium installation and use `--platform mobile-emulated` for speed.
+- All credential and payment safeguards (Safe Purchase constraint) apply to Android tests as well.
