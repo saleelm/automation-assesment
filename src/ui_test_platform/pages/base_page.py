@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
 
@@ -109,6 +111,14 @@ class BasePage:
         logger.info("[%s] Expecting locator to be visible: %s", self.__class__.__name__, locator)
         expect(locator).to_be_visible(timeout=timeout or AppConfig.timeouts.expect)
 
+    def wait_seconds(self, seconds: float) -> BasePage:
+        """Waits for the specified duration in seconds using a monotonic time loop."""
+        logger.info("[%s] Waiting for %.1f seconds", self.__class__.__name__, seconds)
+        start = time.monotonic()
+        while time.monotonic() - start < seconds:
+            pass
+        return self
+
     def reload(self) -> None:
         logger.info("[%s] Reloading page", self.__class__.__name__)
         self.page.reload(wait_until="domcontentloaded")
@@ -142,3 +152,20 @@ class BasePage:
             predicate,
             timeout=timeout or AppConfig.timeouts.api_route_fetch,
         )
+
+    def take_screenshot(self, name: str = "screenshot.png", attach_to_allure: bool = True) -> bytes:
+        """Captures a screenshot of the current page, saves it to disk, and optionally attaches to Allure."""
+        file_path = Path("screenshots") / name
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        image_bytes = self.page.screenshot(path=str(file_path))
+        logger.info("[%s] Saved screenshot to: %s", self.__class__.__name__, file_path)
+        if attach_to_allure:
+            with contextlib.suppress(Exception):
+                import allure
+
+                allure.attach(
+                    image_bytes,
+                    name=name,
+                    attachment_type=allure.attachment_type.PNG,
+                )
+        return image_bytes
