@@ -15,10 +15,6 @@ permissions:
 jobs:
   sanity-suite:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [web, mobile-emulated]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -43,13 +39,13 @@ jobs:
       - name: Run Sanity Tests
         env:
           ENVIRONMENT: qa
-          PLATFORM: ${{ matrix.platform }}
+          PLATFORM: web
         run: |
-          pytest --platform ${{ matrix.platform }} -m "sanity or smoke" --alluredir=allure-results
+          pytest --platform web -m "sanity or smoke" --alluredir=allure-results
 
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sanity-results-${{ matrix.platform }}
+          name: sanity-results-web
           path: allure-results

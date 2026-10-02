@@ -36,16 +36,42 @@ class BasePage:
     def dismiss_cookie_banner(self) -> None:
         """Dismisses cookie consent banners (e.g. Usercentrics CMP) if displayed."""
         with contextlib.suppress(Exception):
-            # Common CMP selectors (Usercentrics shadow DOM / standard buttons)
+            # 1. Handle Usercentrics CMP via DOM / ShadowRoot / API script
+            self.page.evaluate(
+                """
+                () => {
+                    try {
+                        if (window.UC_UI && typeof window.UC_UI.acceptAllConsents === 'function') {
+                            window.UC_UI.acceptAllConsents();
+                        }
+                        const cmp = document.querySelector('#usercentrics-cmp-ui');
+                        if (cmp) {
+                            if (cmp.shadowRoot) {
+                                const sel = "button#uc-accept-all-button, "
+                                    + "button[data-testid='uc-accept-all-button'], "
+                                    + "button[data-testid='uc-accept-button'], button";
+                                const btn = cmp.shadowRoot.querySelector(sel);
+                                if (btn) btn.click();
+                            }
+                            cmp.remove();
+                        }
+                        const root = document.querySelector('#usercentrics-root, .uc-backdrop');
+                        if (root) root.remove();
+                    } catch (e) {}
+                }
+                """
+            )
+            # 2. Check standard DOM buttons if still present
             accept_button = self.page.locator(
                 "#usercentrics-cmp-ui button:has-text('Accept All'), "
                 "button#uc-accept-all-button, "
                 "button[data-testid='uc-accept-all-button'], "
                 "#usercentrics-root button:has-text('Accept'), "
                 "button:has-text('Accept All'), "
-                "button:has-text('I Agree')"
+                "button:has-text('I Agree'), "
+                "button:has-text('Allow all')"
             ).first
-            if accept_button.is_visible(timeout=2000):
+            if accept_button.is_visible(timeout=1000):
                 accept_button.click()
 
         # Ensure usercentrics overlay does not intercept pointer events
