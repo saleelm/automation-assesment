@@ -155,7 +155,7 @@ class ShopPage(BasePage):
             logger.info("Entering email '%s' into authentication prompt", email)
             scopely_email.fill(email)
 
-            from datetime import UTC, datetime
+            from datetime import UTC, datetime, timedelta
 
             login_t0 = datetime.now(tz=UTC)
             continue_btn = self.page.locator("button:has-text('Continue'), button[type='submit']").first
@@ -167,15 +167,20 @@ class ShopPage(BasePage):
             from ui_test_platform.helpers.user_credential_store import load_test_user
 
             user_record = load_test_user()
-            if user_record and user_record.get("mail_token") and login_page is not None:
+            mail_token = user_record.get("mail_token") if user_record else None
+            temp_mail = TempMailClient()
+            if not mail_token:
+                with contextlib.suppress(Exception):
+                    mail_token = temp_mail.get_token_for_address(email)
+
+            if mail_token and login_page is not None:
                 otp_input = self.page.locator("input[autocomplete='one-time-code'], input[inputmode='numeric']").first
                 otp_input.wait_for(state="visible", timeout=20000)
                 logger.info("OTP verification requested — fetching latest OTP code")
-                temp_mail = TempMailClient()
                 code = temp_mail.wait_for_otp(
-                    token=user_record["mail_token"],
+                    token=mail_token,
                     timeout_sec=40,
-                    min_created_at=login_t0,
+                    min_created_at=login_t0 - timedelta(seconds=5),
                 )
                 login_page.enter_otp(code)
 
@@ -186,10 +191,10 @@ class ShopPage(BasePage):
                     timeout=AppConfig.timeouts.navigate_expect,
                 )
 
-            # Wait for authentication to finalize (avatar becomes visible)
+            # Wait for auth code exchange and post-login network activity to settle
             with contextlib.suppress(Exception):
-                avatar = self.page.locator("button:has(img[alt='avatar']), img[alt='avatar']").first
-                avatar.wait_for(state="visible", timeout=15000)
+                self.page.wait_for_load_state("networkidle", timeout=10000)
+            self.page.wait_for_timeout(3000)
 
             self.dismiss_cookie_banner()
 
@@ -207,10 +212,12 @@ class ShopPage(BasePage):
                     modal_x.click()
                     modal_x.wait_for(state="detached", timeout=3000)
 
-            # Ensure we are back on the shop page
-            if "/shop" not in self.page.url:
-                logger.info("Returning to /shop after post-login redirect")
+            # Ensure we are cleanly on /shop with session cookies active and query parameters stripped
+            if "code=" in self.page.url or "/shop" not in self.page.url:
+                logger.info("Navigating cleanly to /shop after post-login auth code exchange")
                 self.goto("/shop")
+                self.expect_visible(self.special_deals_header, timeout=AppConfig.timeouts.navigate_expect)
+                self.dismiss_cookie_banner()
         else:
             logger.info("Login dialog not currently visible — user session already recognized")
 

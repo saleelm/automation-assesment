@@ -9,6 +9,7 @@ from typing import TypedDict
 logger = logging.getLogger("ui_test_platform.helpers.user_credential_store")
 
 _STORE_PATH = Path("playwright/.auth/test_user.json")
+DEFAULT_TEST_USER_EMAIL = "stumble_qa_173996@maxxspace.com"
 
 
 class TestUser(TypedDict, total=False):
@@ -25,10 +26,28 @@ def load_test_user() -> TestUser | None:
     """Returns the persisted TestUser if the store file exists and is verified.
 
     Returns None if the file is missing, corrupt, or the account is not yet verified.
+    If the store file is missing, automatically initializes the default signed-up user.
     """
     if not _STORE_PATH.exists() or _STORE_PATH.stat().st_size == 0:
-        logger.debug("No persisted test user found at %s", _STORE_PATH)
-        return None
+        logger.debug(
+            "No persisted test user found at %s — initializing default signed-up account %s",
+            _STORE_PATH,
+            DEFAULT_TEST_USER_EMAIL,
+        )
+        try:
+            from ui_test_platform.helpers.email_otp_helper import TempMailClient
+
+            client = TempMailClient()
+            token = client.get_token_for_address(DEFAULT_TEST_USER_EMAIL)
+            save_test_user(
+                email=DEFAULT_TEST_USER_EMAIL,
+                mail_token=token,
+                verified=True,
+                username="stumble_qa_173996",
+            )
+        except Exception as exc:
+            logger.warning("Could not auto-initialize default test user (%s)", exc)
+            return None
 
     try:
         raw = json.loads(_STORE_PATH.read_text(encoding="utf-8"))

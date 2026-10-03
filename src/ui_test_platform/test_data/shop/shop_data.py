@@ -26,7 +26,7 @@ class ShopTestData:
         try:
             cfg_email = AppConfig.credentials.email
         except Exception:
-            cfg_email = "stumble_qa_test@uberip.com"
+            cfg_email = "stumble_qa_173996@maxxspace.com"
 
         email = test_user["email"] if test_user else cfg_email
         username = (
