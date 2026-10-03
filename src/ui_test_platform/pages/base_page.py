@@ -153,19 +153,21 @@ class BasePage:
             timeout=timeout or AppConfig.timeouts.api_route_fetch,
         )
 
-    def take_screenshot(self, name: str = "screenshot.png", attach_to_allure: bool = True) -> bytes:
-        """Captures a screenshot of the current page, saves it to disk, and optionally attaches to Allure."""
-        file_path = Path("screenshots") / name
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        image_bytes = self.page.screenshot(path=str(file_path))
-        logger.info("[%s] Saved screenshot to: %s", self.__class__.__name__, file_path)
+    def take_screenshot(self, name: str = "screenshot", attach_to_allure: bool = True) -> Path:
+        """Captures a screenshot of the current page and stores it in screenshots/."""
+        screenshot_dir = Path("screenshots")
+        screenshot_dir.mkdir(parents=True, exist_ok=True)
+        filename = name if name.endswith(".png") else f"{name}.png"
+        target_path = screenshot_dir / filename
+        logger.info("[%s] Capturing screenshot: %s", self.__class__.__name__, target_path)
+        self.page.screenshot(path=str(target_path))
         if attach_to_allure:
             with contextlib.suppress(Exception):
                 import allure
 
-                allure.attach(
-                    image_bytes,
+                allure.attach.file(  # type: ignore[no-untyped-call]
+                    str(target_path),
                     name=name,
                     attachment_type=allure.attachment_type.PNG,
                 )
-        return image_bytes
+        return target_path
