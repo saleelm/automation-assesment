@@ -194,7 +194,7 @@ class ShopPage(BasePage):
             # Wait for auth code exchange and post-login network activity to settle
             with contextlib.suppress(Exception):
                 self.page.wait_for_load_state("networkidle", timeout=10000)
-            self.page.wait_for_timeout(3000)
+            self.wait_seconds(3.0)
 
             self.dismiss_cookie_banner()
 
