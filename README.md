@@ -35,9 +35,10 @@ Rather than a collection of ad-hoc test scripts, this platform demonstrates **QA
 | **Authentication** | Account Signup & Email Verify | `test_tc04_should_automate_new_account_signup_and_email_verification` | Desktop + Mobile | Provisions API mailbox, submits signup agreement, polls inbox, and verifies received confirmation link. |
 | **Authentication** | End-to-End Signup & OTP Login | `test_tc05_should_complete_end_to_end_signup_and_otp_login` | Desktop + Mobile | **Full E2E Auth:** Mailbox creation $\to$ signup $\to$ email confirmation $\to$ OTP retrieval $\to$ OTP submission $\to$ portal redirection & cookie dismissal. |
 | **Shop** | Catalog & Identity | `test_tc01_should_display_special_deals_and_validate_username` | Desktop + Mobile | Browses shop catalog, verifies special deals hero, and validates player username. |
-| **Shop** | Safe Purchase Flow | `test_tc02_should_safely_cancel_purchase_flow_before_confirmation` | Desktop + Mobile | **Mandatory Assessment Requirement:** Selects offer, opens checkout dialog, and safely cancels before payment entry. |
-| **WebGL Game (Bonus)** | Canvas Runtime Init | `test_tc01_should_initialize_webgl_game_container` | Desktop | Navigates to `/play`, asserts `#player` container mount, evaluates WebGL2/WebGL context. |
-| **WebGL Game (Bonus)** | Canvas Viewport Input | `test_tc02_should_dispatch_canvas_viewport_interactions` | Desktop | Computes canvas bounding box, clicks viewport center, and dispatches navigation keys. |
+| **Shop** | Safe Purchase Flow | `test_tc02_should_safely_cancel_purchase_flow_before_confirmation` | Desktop + Mobile | **Mandatory Assessment Requirement:** Selects offer, logs in via email OTP (`stumble_qa_173996@maxxspace.com`), attaches Xsolla payment frame, enters card details, verifies price & tax calculation, and safely cancels before payment confirmation. |
+| **WebGL Game (Bonus)** | Canvas Runtime Init & Validation | `test_tc01_should_initialize_webgl_game_container` | Desktop | Navigates to `/play`, waits for game asset download & loader detach, verifies canvas rendering with non-zero dimensions, detects SCOPELY splash screen, checks WebGL2/WebGL context support, and captures screenshot. |
+| **WebGL Game (Bonus)** | Direct Play Start Sequence | `test_tc02_should_verify_direct_play_and_start_game` | Desktop | Detects direct PLAY button on WebGL game portal/lobby via pixel analysis, dispatches coordinate-based canvas click, and verifies game responsiveness. |
+| **WebGL Game (Bonus)** | Guest Onboarding & Age Gate | `test_tc03_should_handle_guest_age_verification` | Desktop | Unauthenticated guest flow: detects WELCOME ABOARD modal on canvas, clicks START PLAYING, sets player age to 25, accepts age verification, and verifies responsive canvas. |
 
 ### 🔑 Automated Disposable Email & OTP Pipeline (`TempMailClient`)
 The authentication suite eliminates flaky hardcoded credentials and manual 2FA interventions by integrating an automated API-driven disposable mailbox service:
@@ -218,7 +219,9 @@ make test-auth
 pytest -m shop
 
 # WebGL Game Canvas tests
-pytest -m webgl
+make test-game
+# or: pytest -m game
+# or: pytest tests/game/test_webgl_game.py
 
 # Smoke suite
 make test-smoke
@@ -293,16 +296,99 @@ The CI/CD pipeline runs on GitHub Actions:
 
 ---
 
-## 5. Bonus Challenge: WebGL Game Canvas Automation
+## 5. WebGL Game Canvas Automation (`/play`)
 
-### The Problem
-Traditional test automation frameworks (Selenium, Cypress, standard Playwright locators) can only interact with standard DOM elements. A WebGL game renders inside a `<canvas>` element as pixel buffers, making internal buttons and stumblers invisible to DOM locators.
+### The Challenge
+Traditional test automation frameworks (Selenium, Cypress, standard Playwright locators) interact exclusively with the DOM tree. A Unity WebGL game renders inside a `<canvas>` element (`#react-unity-webgl-canvas-1`) as an internal pixel buffer, making in-game UI buttons, splash screens, lobbies, and modals completely invisible to standard DOM selectors.
 
-### The Lead-Grade Solution
-This framework implements a **three-tier automation strategy**:
-1. **Container & WebGL Context Validation:** Injects JavaScript to verify WebGL context availability (`webgl2` / `webgl`) and checks Unity loader lifecycle events.
-2. **Coordinate & Viewport Input Dispatch:** Computes runtime bounding boxes of the `#player` canvas and dispatches proportional mouse clicks (`mouse.click(x, y)`) and keyboard event sequences (`Space`, `ArrowRight`, `ArrowLeft`).
-3. **Perceptual Visual Regression (Optional Expansion):** Visual snapshot diffing against baseline renders to catch graphical anomalies.
+### Test Scenarios (`tests/game/test_webgl_game.py`)
+
+The platform includes a dedicated game test suite with 3 comprehensive test cases implemented in `TestWebGLGamePortal`:
+
+#### 1. TC01: WebGL Container Initialization & Runtime Verification
+- **Test:** `test_tc01_should_initialize_webgl_game_container`
+- **Tags:** `@tags(Tag.SMOKE, Tag.GAME, Tag.WEBGL, Tag.WEB_ONLY)`
+- **Prerequisite:** Navigates to `/play`, handles initial download prompt if presented, waits for the Unity loader (running stumbler animation / progress bar) to finish and detach, and confirms active rendering dimensions.
+- **Assertions:**
+  - Game `<canvas>` is visible with non-zero width and height (`is_canvas_rendered`).
+  - SCOPELY splash screen is detected on the canvas via pixel sampling (`is_scopely_splash_displayed`).
+  - Fullscreen button and navigation PLAY button are visible in the surrounding portal.
+  - Browser engine supports active `webgl2` or `webgl` context (`is_webgl_supported`).
+  - WebGL portal reaches a confirmed playable state.
+  - Captures verified screenshot: `screenshots/tc01_webgl_game_assertion.png`.
+
+#### 2. TC02: Direct Play Initiation & Game Start Sequence
+- **Test:** `test_tc02_should_verify_direct_play_and_start_game`
+- **Tags:** `@tags(Tag.E2E, Tag.GAME, Tag.WEBGL, Tag.WEB_ONLY)`
+- **Workflow:**
+  - Evaluates canvas pixel buffer to detect the prominent in-game lobby PLAY button (`is_direct_play_button_displayed`).
+  - Dispatches coordinate-based click to the PLAY action button area (`click_direct_play` targeting relative coordinates `x: 0.87, y: 0.87`).
+  - Asserts the game canvas and fullscreen controls remain active and responsive during the transition.
+  - Captures visual proof: `screenshots/tc02_after_direct_play.png`.
+
+#### 3. TC03: Guest Onboarding & Age Verification Sequence
+- **Test:** `test_tc03_should_handle_guest_age_verification`
+- **Tags:** `@pytest.mark.unauthenticated`, `@tags(Tag.E2E, Tag.GAME, Tag.WEBGL, Tag.WEB_ONLY)`
+- **Workflow:**
+  - Detects the initial in-game **WELCOME ABOARD** modal on the canvas (`is_welcome_aboard_displayed`).
+  - Clicks **START PLAYING!** at relative coordinates `(x: 0.50, y: 0.51)`.
+  - Handles the player age gate (`set_age_and_accept`): checks for DOM overlays or inputs the age (`25`) directly into the canvas input area, confirms with `Enter`, and accepts via the confirm button area `(x: 0.50, y: 0.62)`.
+  - Verifies the game canvas remains active, responsive, and ready for gameplay.
+  - Captures evidence: `screenshots/tc03_after_age_acceptance.png`.
+
+---
+
+### The Lead-Grade Solution Architecture (`WebGLGamePage`)
+
+The implementation in [`WebGLGamePage`](file:///src/ui_test_platform/pages/stumbleguys/webgl_game_page.py) demonstrates enterprise game automation patterns:
+
+```mermaid
+graph TD
+    A["Navigate to /play"] --> B["wait_for_game_download_and_load()"]
+    B --> C["Asset Download & Unity Loader Detach"]
+    C --> D["Canvas Dimension & Context Check"]
+    D --> E{"Test Execution"}
+    E -->|"TC01"| F["Runtime & WebGL Context Validation<br/>(Scopely Splash + WebGL2 Context)"]
+    E -->|"TC02"| G["Direct PLAY Sequence<br/>(Pixel Analysis + Canvas Coordinate Click)"]
+    E -->|"TC03"| H["Guest Age Verification<br/>(Welcome Aboard + Age Entry & Acceptance)"]
+```
+
+1. **Lifecycle & Loader Synchronization (`wait_for_game_download_and_load`):**
+   - Automatically handles the "Download" prompt if presented on initial load.
+   - Waits for the Unity loader (running stumbler animation) to cleanly detach from the DOM.
+   - Evaluates `canvas.width > 0 && canvas.height > 0` to verify active rendering.
+
+2. **Visual State Detection via Pixel Buffer Sampling (Pillow):**
+   - **Scopely Splash Detection (`_check_scopely_blue`):** Samples central canvas pixel buffers for the signature Scopely blue hue (`r < 35, 100 < g < 170, b > 210`) to confirm engine boot.
+   - **Welcome Aboard Modal (`is_welcome_aboard_displayed`):** Samples the golden "START PLAYING!" button coordinates (`r > 220, 140 < g < 215, b < 110`).
+   - **Direct PLAY Button (`is_direct_play_button_displayed`):** Detects the vibrant green/gold lobby action button in the bottom-right viewport quadrant (`~75%-95% width, ~78%-95% height`).
+
+3. **Proportional Coordinate Input Dispatch:**
+   - Clicks are calculated proportionally against runtime canvas bounding boxes (`FloatRect`), making interaction points fully responsive across arbitrary screen resolutions and DPI scaling factors.
+
+4. **Browser WebGL Context Introspection:**
+   - Injects JavaScript to evaluate `HTMLCanvasElement.getContext('webgl2') || getContext('webgl')`, directly validating the browser engine's GPU rendering pipeline.
+
+---
+
+### Running Game Test Cases
+
+```bash
+# Run the entire WebGL game test suite
+make test-game
+# or: pytest tests/game/test_webgl_game.py
+
+# Run by marker
+pytest -m game
+
+# Run individual game test cases
+pytest tests/game/test_webgl_game.py -k "test_tc01"
+pytest tests/game/test_webgl_game.py -k "test_tc02"
+pytest tests/game/test_webgl_game.py -k "test_tc03"
+
+# Run in headed mode to observe canvas rendering live
+pytest tests/game/test_webgl_game.py --headed
+```
 
 ---
 

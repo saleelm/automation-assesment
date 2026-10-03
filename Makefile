@@ -1,5 +1,5 @@
 .PHONY: test test-list test-setup test-local-setup test-local test-local-list \
-        test-headed test-web test-mobile test-android test-auth test-smoke test-sanity \
+        test-headed test-web test-mobile test-android test-auth test-game test-smoke test-sanity \
         test-regression test-api test-e2e clean-results clean-report clean-allure \
         report report-allure report-allure-open \
         typecheck lint lint-fix format format-check lint-waits install-dev install-appium \
@@ -7,6 +7,7 @@
 
 VENV ?= .venv
 BIN = $(if $(wildcard $(VENV)/bin/*),$(VENV)/bin/, )
+PYTEST ?= $(BIN)pytest
 
 install-dev:
 	pip install -e ".[dev]"
@@ -25,52 +26,55 @@ save-game-session:
 	python3 scripts/save_session.py --game --persistent
 
 test:
-	pytest
+	$(PYTEST)
 
 test-list:
-	pytest --collect-only -q
+	$(PYTEST) --collect-only -q
 
 test-setup:
-	pytest -m setup
+	$(PYTEST) -m setup
 
 test-local-setup:
-	ENVIRONMENT=local pytest -m setup
+	ENVIRONMENT=local $(PYTEST) -m setup
 
 test-local:
-	ENVIRONMENT=local pytest
+	ENVIRONMENT=local $(PYTEST)
 
 test-local-list:
-	ENVIRONMENT=local pytest --collect-only -q
+	ENVIRONMENT=local $(PYTEST) --collect-only -q
 
 test-headed:
-	pytest --headed
+	$(PYTEST) --headed
 
 test-web:
-	pytest --platform web
+	$(PYTEST) --platform web
 
 test-mobile:
-	pytest --platform mobile-emulated
+	$(PYTEST) --platform mobile-emulated
 
 test-android:
-	pytest --platform android-device
+	$(PYTEST) --platform android-device
 
 test-auth:
-	pytest -m auth
+	$(PYTEST) -m auth
+
+test-game:
+	$(PYTEST) -m game
 
 test-smoke:
-	pytest -m smoke
+	$(PYTEST) -m smoke
 
 test-sanity:
-	pytest -m sanity
+	$(PYTEST) -m sanity
 
 test-regression:
-	pytest -m regression
+	$(PYTEST) -m regression
 
 test-api:
-	pytest -m api
+	$(PYTEST) -m api
 
 test-e2e:
-	pytest -m e2e
+	$(PYTEST) -m e2e
 
 clean-results:
 	rm -rf allure-results test-results allure-report junit-results videos
