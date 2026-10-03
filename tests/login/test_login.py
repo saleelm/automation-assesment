@@ -44,31 +44,48 @@ class TestAuthentication:
     @tags(Tag.E2E, Tag.LOGIN, Tag.AUTH)
     @title("TC03 should automate email OTP retrieval and entry pipeline")
     def test_tc03_should_automate_email_otp_retrieval_and_entry(self, login_page: LoginPage) -> None:
-        from ui_test_platform.helpers.email_otp_helper import (
-            MailServiceRateLimitError,
-            TempMailClient,
-        )
+        from datetime import UTC, datetime, timedelta
+
+        from ui_test_platform.helpers.email_otp_helper import TempMailClient
+        from ui_test_platform.helpers.user_credential_store import DEFAULT_TEST_USER_EMAIL, load_test_user
+
+        user = load_test_user()
+        email_addr = user["email"] if user else DEFAULT_TEST_USER_EMAIL
+        mail_token = user["mail_token"] if user else None
 
         temp_mail = TempMailClient()
+        if not mail_token:
+            mail_token = temp_mail.get_token_for_address(email_addr)
 
-        with step("Given a disposable automated test mailbox is created"):
-            try:
-                email_addr, token = temp_mail.create_inbox()
-            except MailServiceRateLimitError as e:
-                pytest.skip(f"Public disposable mail service is rate-limited: {e}")
+        with step(f"Given a verified returning user account is configured: {email_addr}"):
             assert "@" in email_addr
-            assert len(token) > 0
+            assert len(mail_token) > 0
 
-        with step("When the user initiates login with the automated email"):
+        with step("When the user initiates login with the registered email"):
+            login_t0 = datetime.now(tz=UTC) - timedelta(seconds=5)
             login_page.initiate_signup_or_login(email_addr)
 
-        with step("Then the identity provider renders the authentication prompt"):
-            auth_prompt = login_page.page.locator(
-                "button:has-text('Agree and get sign up link'), "
-                "input[autocomplete='one-time-code'], "
-                "input[inputmode='numeric']"
+        with step("Then the identity provider renders the 6-digit OTP code prompt"):
+            otp_prompt = login_page.page.locator(
+                "input[autocomplete='one-time-code'], input[inputmode='numeric']"
             ).first
-            expect(auth_prompt).to_be_visible(timeout=AppConfig.timeouts.navigate_expect)
+            expect(otp_prompt).to_be_visible(timeout=AppConfig.timeouts.navigate_expect)
+
+        with step("And the latest 6-digit OTP is retrieved from the automated inbox"):
+            otp_code = temp_mail.wait_for_otp(
+                token=mail_token,
+                timeout_sec=45,
+                min_created_at=login_t0,
+            )
+            assert len(otp_code) == 6
+
+        with step("Then the user enters the OTP code to complete authentication"):
+            login_page.enter_otp(otp_code)
+            login_page.page.wait_for_url(
+                lambda u: "stumbleguys.com" in str(urlparse(u).hostname),
+                timeout=AppConfig.timeouts.navigate_expect,
+            )
+            login_page.dismiss_cookie_banner()
 
     @tags(Tag.E2E, Tag.LOGIN, Tag.AUTH)
     @title("TC04 should automate new account signup and API mailbox verification")
