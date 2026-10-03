@@ -21,6 +21,9 @@ appium:
 save-session:
 	python3 scripts/save_session.py
 
+save-game-session:
+	python3 scripts/save_session.py --game --persistent
+
 test:
 	pytest
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
@@ -110,6 +111,14 @@ class BasePage:
         logger.info("[%s] Expecting locator to be visible: %s", self.__class__.__name__, locator)
         expect(locator).to_be_visible(timeout=timeout or AppConfig.timeouts.expect)
 
+    def wait_seconds(self, seconds: float) -> BasePage:
+        """Waits for the specified duration in seconds using a monotonic time loop."""
+        logger.info("[%s] Waiting for %.1f seconds", self.__class__.__name__, seconds)
+        start = time.monotonic()
+        while time.monotonic() - start < seconds:
+            pass
+        return self
+
     def reload(self) -> None:
         logger.info("[%s] Reloading page", self.__class__.__name__)
         self.page.reload(wait_until="domcontentloaded")
@@ -144,19 +153,21 @@ class BasePage:
             timeout=timeout or AppConfig.timeouts.api_route_fetch,
         )
 
-    def take_screenshot(self, name: str = "screenshot") -> Path:
+    def take_screenshot(self, name: str = "screenshot", attach_to_allure: bool = True) -> Path:
         """Captures a screenshot of the current page and stores it in screenshots/."""
         screenshot_dir = Path("screenshots")
         screenshot_dir.mkdir(parents=True, exist_ok=True)
-        target_path = screenshot_dir / f"{name}.png"
+        filename = name if name.endswith(".png") else f"{name}.png"
+        target_path = screenshot_dir / filename
         logger.info("[%s] Capturing screenshot: %s", self.__class__.__name__, target_path)
         self.page.screenshot(path=str(target_path))
-        with contextlib.suppress(Exception):
-            import allure
+        if attach_to_allure:
+            with contextlib.suppress(Exception):
+                import allure
 
-            allure.attach.file(  # type: ignore[no-untyped-call]
-                str(target_path),
-                name=name,
-                attachment_type=allure.attachment_type.PNG,
-            )
+                allure.attach.file(  # type: ignore[no-untyped-call]
+                    str(target_path),
+                    name=name,
+                    attachment_type=allure.attachment_type.PNG,
+                )
         return target_path

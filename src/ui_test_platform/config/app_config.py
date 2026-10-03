@@ -21,6 +21,7 @@ class Timeouts:
     expect: int = 20_000
     navigate_expect: int = 40_000
     slow_render: int = 60_000
+    game_download: int = 180_000
     api_route_fetch: int = 60_000
     long_operation: int = 600_000
 

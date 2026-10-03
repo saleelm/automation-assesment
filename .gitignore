@@ -43,6 +43,7 @@ env/.env.*
 allure-results/
 allure-report/
 test-results/
+screenshots/
 junit-results/
 cli-artifacts/
 .playwright/
