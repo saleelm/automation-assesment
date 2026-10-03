@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import contextlib
+import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -17,6 +19,8 @@ if TYPE_CHECKING:
     from playwright.sync_api import Browser, BrowserContext, Page, Playwright
 
     from ui_test_platform.helpers.appium_helper import AppiumRuntime
+
+logger = logging.getLogger("ui_test_platform.runner")
 
 
 @pytest.fixture(scope="session")
@@ -71,6 +75,12 @@ def browser_context_args(
         "base_url": AppConfig.base_url,
         "ignore_https_errors": True,
     }
+
+    video_opt = request.config.getoption("--video", default="off")
+    if video_opt in ("on", "retain-on-failure"):
+        videos_dir = Path("videos")
+        videos_dir.mkdir(parents=True, exist_ok=True)
+        args["record_video_dir"] = str(videos_dir)
 
     if platform == Platform.MOBILE_EMULATED:
         device_descriptor = playwright.devices.get(AppConfig.mobile_device)
@@ -170,8 +180,57 @@ def context(
     ctx.set_default_timeout(AppConfig.timeouts.action)
     ctx.set_default_navigation_timeout(AppConfig.timeouts.navigation)
     ctx.route("**/*usercentrics*", lambda route: route.abort())
+
+    pages: list[Page] = list(ctx.pages)
+    ctx.on("page", lambda p: pages.append(p))
+
     yield ctx
+
     ctx.close()
+
+    video_opt = request.config.getoption("--video", default="off")
+    if video_opt in ("on", "retain-on-failure"):
+        rep_call = getattr(request.node, "rep_call", None)
+        rep_setup = getattr(request.node, "rep_setup", None)
+        is_failed = (rep_call is not None and rep_call.failed) or (rep_setup is not None and rep_setup.failed)
+
+        videos_dir = Path("videos")
+        videos_dir.mkdir(parents=True, exist_ok=True)
+        safe_name = request.node.nodeid.replace("/", "_").replace("::", "__").replace("[", "_").replace("]", "")
+
+        for index, pg in enumerate(pages):
+            video = pg.video
+            if not video:
+                continue
+
+            try:
+                raw_path = Path(video.path())
+            except Exception as e:
+                logger.debug("Failed to determine video path: %s", e)
+                continue
+
+            if is_failed:
+                suffix = f"_{index + 1}" if len(pages) > 1 else ""
+                dest_path = videos_dir / f"{safe_name}{suffix}.webm"
+                try:
+                    video.save_as(str(dest_path))
+                    if raw_path != dest_path and raw_path.exists():
+                        raw_path.unlink(missing_ok=True)
+                    logger.error("🎥 Failure video saved at: %s", dest_path)
+
+                    with contextlib.suppress(Exception):
+                        import allure
+
+                        allure.attach.file(  # type: ignore[no-untyped-call]
+                            str(dest_path),
+                            name=f"Failure Video: {request.node.name}",
+                            attachment_type=allure.attachment_type.WEBM,
+                        )
+                except Exception as e:
+                    logger.debug("Failed to save or attach failure video: %s", e)
+            elif video_opt == "retain-on-failure":
+                with contextlib.suppress(Exception):
+                    video.delete()
 
 
 @pytest.fixture

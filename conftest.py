@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from dotenv import load_dotenv
@@ -71,14 +71,16 @@ def pytest_runtest_logreport(report: pytest.TestReport) -> None:
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_makereport(item: Item, call: pytest.CallInfo) -> Generator[None, None, None]:
+def pytest_runtest_makereport(item: Item, call: pytest.CallInfo[Any]) -> Generator[None, Any, None]:
     outcome = yield
     report = outcome.get_result()
+    setattr(item, f"rep_{report.when}", report)
 
     if report.when in ("call", "setup") and report.failed:
-        page = item.funcargs.get("page")
+        funcargs = getattr(item, "funcargs", {})
+        page = funcargs.get("page")
         if not page:
-            for val in item.funcargs.values():
+            for val in funcargs.values():
                 if hasattr(val, "page") and hasattr(val.page, "screenshot"):
                     page = val.page
                     break

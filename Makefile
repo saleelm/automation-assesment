@@ -73,7 +73,7 @@ test-e2e:
 	pytest -m e2e
 
 clean-results:
-	rm -rf allure-results test-results allure-report junit-results
+	rm -rf allure-results test-results allure-report junit-results videos
 
 clean-report:
 	rm -rf allure-report
@@ -91,7 +91,7 @@ report-allure-open:
 	allure open allure-report
 
 typecheck:
-	$(BIN)mypy src tests
+	$(BIN)mypy src tests conftest.py
 
 lint:
 	$(BIN)ruff check . && $(MAKE) lint-waits
