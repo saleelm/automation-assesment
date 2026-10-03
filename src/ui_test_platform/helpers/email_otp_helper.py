@@ -93,6 +93,24 @@ class TempMailClient:
         logger.info("Disposable mailbox provisioned successfully: %s", address)
         return address, token
 
+    def get_token_for_address(self, address: str, password: str | None = None) -> str:
+        """Retrieves JWT auth token for an existing inbox."""
+        if not password:
+            match = re.search(r"stumble_qa_(\d+)", address)
+            if match:
+                password = f"P@ss_{match.group(1)}_Secure!"
+            else:
+                raise ValueError(f"No password provided and cannot infer password for {address}")
+
+        token_res = self._http_request(
+            "/token",
+            method="POST",
+            data={"address": address, "password": password},
+        )
+        token = str(token_res.get("token", ""))
+        logger.info("Disposable mailbox auth token retrieved successfully: %s", address)
+        return token
+
     def wait_for_otp(
         self,
         token: str,
